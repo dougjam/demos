@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acoustic Bubble Simulator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
+a { color: #2563eb; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.control-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.radio-group {
+  display: flex;
+  gap: 0.5rem;
+}
+.radio-group label {
+  font-size: 0.85rem;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.slider-row input[type="range"] {
+  width: 120px;
+}
+.slider-val {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2em;
+  text-align: right;
+}
+.slider-val-wide {
+  min-width: 4em;
+}
+.freq-display {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0.5rem;
+  background: #f0f0f0;
+  border-radius: 4px;
+  white-space: nowrap;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+.freq-display .freq-label { display: inline-block; width: 5.5em; }
+.freq-display .freq-val { font-weight: 600; }
+
+button.play-btn {
+  width: 8.5em;
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+}
+button.play-btn:hover { background: #1d4ed8; }
+button.play-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+button.wav-btn {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button.wav-btn:hover { background: #f0f0f0; }
+button.wav-btn:disabled { color: #999; cursor: not-allowed; }
+
+#bubbleCanvas {
+  width: 100%;
+  height: 400px;
+  background: #0a0a1e;
+  border-radius: 8px;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+#waveCanvas {
+  width: 100%;
+  height: 140px;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  display: block;
+}
+#spectrogramCanvas {
+  width: 100%;
+  height: 150px;
+  background: #000;
+  border-radius: 0 0 8px 8px;
+  border: 1px solid #ddd;
+  border-top: none;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+details {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+details .info-content {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+  line-height: 1.6;
+}
+.nav-link { font-size: 0.8rem; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>Acoustic Bubble Simulator</h1>
+<p class="subtitle">
+  Physically based synthesis of the sound produced by an air bubble
+  oscillating underwater, using Minnaert resonance, jet forcing, and
+  three damping mechanisms. JavaScript remix of a Python demo originally
+  written by <a href="https://langlo.is/" target="_blank">Timothy Langlois</a> in 2016.
+</p>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Motion</label>
+    <div class="radio-group">
+      <label><input type="radio" name="motion" value="1"> Static</label>
+      <label><input type="radio" name="motion" value="2" checked> Rising</label>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Interface</label>
+    <div class="radio-group">
+      <label><input type="radio" name="interface" value="1" checked> Fluid</label>
+      <label><input type="radio" name="interface" value="2"> Rigid</label>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Zoom</label>
+    <div class="slider-row">
+      <input type="range" id="zoom" min="2" max="50" step="0.1" value="10">
+      <span class="slider-val" id="zoomVal">10.0</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Depth <span style="font-weight:normal;text-transform:none">(diameters)</span></label>
+    <div class="slider-row">
+      <input type="range" id="depth" min="0.51" max="49.5" step="0.1" value="5">
+      <span class="slider-val" id="depthVal">5.0</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Radius <span style="font-weight:normal;text-transform:none">(mm)</span></label>
+    <div class="slider-row">
+      <input type="range" id="radius" min="0.5" max="20" step="0.1" value="10">
+      <span class="slider-val slider-val-wide" id="radiusVal">10.0 mm</span>
+    </div>
+  </div>
+
+  <div class="control-group" style="justify-content: center;">
+    <button class="play-btn" id="playBtn">Play Bubble</button>
+  </div>
+
+  <div class="control-group" style="justify-content: center;">
+    <button class="wav-btn" id="wavBtn" disabled>Download WAV</button>
+  </div>
+
+  <div class="control-group" style="justify-content: center;">
+    <div class="freq-display"><span class="freq-label">Minnaert:</span> <span class="freq-val" id="minnaertFreq">--</span> Hz</div>
+    <div class="freq-display" style="margin-top:0.25rem;"><span class="freq-label">Actual:</span> <span class="freq-val" id="actualFreq">--</span> Hz</div>
+  </div>
+</div>
+
+<canvas id="bubbleCanvas"></canvas>
+<canvas id="waveCanvas"></canvas>
+<canvas id="spectrogramCanvas"></canvas>
+
+<details>
+  <summary>About the physics model</summary>
+  <div class="info-content">
+    <p>
+      When a bubble forms underwater, it oscillates radially and emits sound.
+      The <strong>Minnaert frequency</strong> gives the natural resonance of a
+      spherical gas bubble in an infinite fluid [1]. The <strong>actual frequency</strong>
+      accounts for proximity to the water surface (depth correction via bubble capacitance) [2].
+    </p>
+    <p style="margin-top:0.5rem;">
+      Three damping mechanisms attenuate the oscillation:
+      <strong>radiation</strong> (sound energy radiated away),
+      <strong>viscous</strong> (fluid viscosity), and
+      <strong>thermal</strong> (heat conduction between gas and liquid) [3].
+      A <strong>jet forcing</strong> term models the initial collapse impulse [2].
+    </p>
+    <p style="margin-top:0.5rem;">
+      In <em>Rising</em> mode, the bubble ascends at its terminal velocity
+      [4], causing a characteristic upward pitch glide as depth decreases.
+    </p>
+    <p style="margin-top:0.5rem;">
+      The ODE is integrated at 96 kHz using a 4th-order Runge-Kutta solver,
+      producing one second of physically accurate bubble sound.
+    </p>
+    <h4 style="margin-top:0.75rem;">References</h4>
+    <ol style="margin-top:0.25rem; padding-left:1.5em; font-size:0.8rem;">
+      <li>M. Minnaert, "On musical air-bubbles and the sounds of running water,"
+        <em>Phil. Mag.</em>, Series 7, vol. 16, no. 104, pp. 235&ndash;248, 1933.
+        <a href="https://doi.org/10.1080/14786443309462277" target="_blank">doi:10.1080/14786443309462277</a></li>
+      <li>T. R. Langlois, C. Zheng, and D. L. James,
+        "Toward Animating Water with Complex Acoustic Bubbles,"
+        <em>ACM Trans. Graph. (SIGGRAPH 2016)</em>, vol. 35, no. 4, pp. 1&ndash;13, July 2016.
+        <a href="https://doi.org/10.1145/2897824.2925904" target="_blank">doi:10.1145/2897824.2925904</a>
+        &#183; <a href="https://www.cs.cornell.edu/projects/Sound/bubbles/" target="_blank">Project page</a></li>
+      <li>T. G. Leighton, <em>The Acoustic Bubble</em>.
+        Academic Press, 1994. ISBN: 9780124419209.
+        <a href="https://www.sciencedirect.com/book/9780124419209/the-acoustic-bubble" target="_blank">Publisher page</a></li>
+      <li>S. Baz-Rodr&iacute;guez, A. Aguilar-Corona, and A. Soria,
+        "Rising Velocity for Single Bubbles in Pure Liquids,"
+        <em>Rev. Mex. Ing. Qu&iacute;m.</em>, vol. 11, no. 2, pp. 269&ndash;278, 2012.
+        <a href="https://www.scielo.org.mx/scielo.php?pid=S1665-27382012000200006&amp;script=sci_abstract&amp;tlng=en" target="_blank">Paper</a></li>
+    </ol>
+  </div>
+</details>
+
+<p class="nav-link"><a href="../index.html">&larr; Back to demos</a></p>
+
+<script>
+// ============================================================
+// Physical constants
+// ============================================================
+const JET_ONSET = 0.01;    // Jet forcing onset time (s)
+const CF = 1497;          // Speed of sound in water (m/s)
+const MU = 8.9e-4;        // Dynamic viscosity (Pa*s)
+const RHO_WATER = 998;    // Water density (kg/m^3)
+const GTH = 1.6e6;        // Thermal conductivity ratio parameter
+const GAMMA = 1.4;        // Heat capacity ratio
+const G_ACC = 9.8;        // Gravitational acceleration (m/s^2)
+const SIGMA = 0.072;      // Surface tension (N/m)
+const ETA = 0.84;         // Jet parameter
+const PATM = 101325;      // Atmospheric pressure (Pa)
+
+// ============================================================
+// Physics engine — exact port of bubbleDemo2016.py
+// ============================================================
+
+function bubbleCapacitance(r, d, interfaceType) {
+  const rd = r / (2 * d);
+  if (interfaceType === 1) { // Fluid
+    return r / (1.0 - rd - Math.pow(rd, 4));
+  } else { // Rigid
+    return r / (1.0 + rd - Math.pow(rd, 4));
+  }
+}
+
+function minnaertFreq(r) {
+  const omega = Math.sqrt(3 * GAMMA * PATM - 2 * SIGMA * r) / (r * Math.sqrt(RHO_WATER));
+  return omega / (2 * Math.PI);
+}
+
+function actualFreq(r, d, interfaceType) {
+  const C = bubbleCapacitance(r, d, interfaceType);
+  const p0 = PATM;
+  const v0 = (4 / 3) * Math.PI * Math.pow(r, 3);
+  const omega = Math.sqrt(4 * Math.PI * GAMMA * p0 * C / (RHO_WATER * v0));
+  return omega / (2 * Math.PI);
+}
+
+function calcBeta(r, w0) {
+  const dr = w0 * r / CF;
+  const dvis = 4 * MU / (RHO_WATER * w0 * r * r);
+  const phi = 16 * GTH * G_ACC / (9 * Math.pow(GAMMA - 1, 2) * w0);
+  const safePhi = Math.max(phi, 3.001); // guard sqrt domain
+  const dth = 2 * (Math.sqrt(safePhi - 3) - (3 * GAMMA - 1) /
+               (3 * (GAMMA - 1))) / (phi - 4);
+  const dtotal = dr + dvis + dth;
+  return w0 * dtotal / Math.sqrt(dtotal * dtotal + 4);
+}
+
+function jetForcing(r, t) {
+  const cutoff = Math.min(0.0006, 0.5 / (3.0 / r));
+  if (t < 0 || t > cutoff) return 0;
+  let jval = (-9 * GAMMA * SIGMA * ETA *
+              (PATM + 2 * SIGMA / r) * Math.sqrt(1 + ETA * ETA) /
+              (4 * RHO_WATER * RHO_WATER * Math.pow(r, 5)) * t * t);
+  jval *= r;                   // convert to radius
+  jval *= RHO_WATER * r;      // convert to pressure
+  return jval;
+}
+
+function terminalVelocity(r) {
+  const d = 2 * r;
+  const del_rho = 997;
+  const vtpot = (1 / 36) * del_rho * G_ACC * d * d / MU;
+  const vt1 = vtpot * Math.sqrt(1 + 0.73667 * Math.sqrt(G_ACC * d) / vtpot);
+  const vt2 = Math.sqrt(3 * SIGMA / RHO_WATER / d + G_ACC * d * del_rho / 2 / RHO_WATER);
+  return 1 / Math.sqrt(1 / (vt1 * vt1) + 1 / (vt2 * vt2));
+}
+
+// ODE right-hand side: y = [velocity, displacement]
+// Returns [acceleration, velocity]
+function bubbleODE(t, y0, y1, params) {
+  const { r, d0, motionType, interfaceType } = params;
+
+  const f = jetForcing(r, t - JET_ONSET);
+
+  let d = d0;
+  if (motionType === 2 && t >= JET_ONSET) {
+    const vt = terminalVelocity(r);
+    d = Math.max(0.51 * 2 * r, d0 - (t - JET_ONSET) * vt);
+  }
+
+  // Early exit when oscillation has damped out
+  if (t > JET_ONSET + 0.01 && Math.sqrt(y0 * y0 + y1 * y1) < 1e-15) {
+    return [0, 0];
+  }
+
+  const p0 = PATM + 2.0 * SIGMA / r;
+  const v0 = (4 / 3) * Math.PI * r * r * r;
+
+  const w0 = actualFreq(r, d, interfaceType) * 2 * Math.PI;
+  const k = GAMMA * p0 / v0;
+  const m = k / (w0 * w0);
+
+  const beta = calcBeta(r, w0);
+
+  const acc = f / m - 2 * beta * y0 - w0 * w0 * y1;
+  return [acc, y0];
+}
+
+// ============================================================
+// RK4 ODE solver
+// ============================================================
+
+function integrate(r, d, motionType, interfaceType) {
+  const numSamples = 96000;
+  const dt = 1.0 / numSamples;
+  const params = { r, d0: d, motionType, interfaceType };
+
+  const displacement = new Float64Array(numSamples);
+
+  let y0 = 0; // velocity
+  let y1 = 0; // displacement
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i * dt;
+    displacement[i] = y1;
+
+    // RK4 step
+    const k1 = bubbleODE(t, y0, y1, params);
+    const k1a = k1[0], k1b = k1[1];
+
+    const k2 = bubbleODE(t + dt / 2, y0 + dt / 2 * k1a, y1 + dt / 2 * k1b, params);
+    const k2a = k2[0], k2b = k2[1];
+
+    const k3 = bubbleODE(t + dt / 2, y0 + dt / 2 * k2a, y1 + dt / 2 * k2b, params);
+    const k3a = k3[0], k3b = k3[1];
+
+    const k4 = bubbleODE(t + dt, y0 + dt * k3a, y1 + dt * k3b, params);
+    const k4a = k4[0], k4b = k4[1];
+
+    y0 += dt / 6 * (k1a + 2 * k2a + 2 * k3a + k4a);
+    y1 += dt / 6 * (k1b + 2 * k2b + 2 * k3b + k4b);
+  }
+
+  return displacement;
+}
+
+// ============================================================
+// Audio pipeline
+// ============================================================
+
+let audioCtx = null;
+let lastBuffer = null; // store for WAV download
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 96000 });
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function normalizeAndPlay(displacement) {
+  const ctx = ensureAudioCtx();
+  const actualRate = ctx.sampleRate;
+
+  // Normalize to [-1, 1]
+  let maxAbs = 0;
+  for (let i = 0; i < displacement.length; i++) {
+    const a = Math.abs(displacement[i]);
+    if (a > maxAbs) maxAbs = a;
+  }
+  const scale = maxAbs > 0 ? 1.0 / (maxAbs * 1.05) : 1;
+
+  let samples;
+  if (actualRate >= 96000) {
+    // Use at full rate
+    samples = new Float32Array(displacement.length);
+    for (let i = 0; i < displacement.length; i++) {
+      samples[i] = displacement[i] * scale;
+    }
+  } else {
+    // Decimate to actual rate (e.g. 48kHz → take every other sample)
+    const ratio = 96000 / actualRate;
+    const len = Math.floor(displacement.length / ratio);
+    samples = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      const srcIdx = Math.floor(i * ratio);
+      samples[i] = displacement[srcIdx] * scale;
+    }
+  }
+
+  lastBuffer = samples;
+
+  const buffer = ctx.createBuffer(1, samples.length, actualRate);
+  buffer.copyToChannel(samples, 0);
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start();
+
+  return new Promise(resolve => {
+    source.onended = resolve;
+  });
+}
+
+function downloadWav() {
+  if (!lastBuffer) return;
+  const ctx = ensureAudioCtx();
+  const sampleRate = ctx.sampleRate >= 96000 ? 96000 : ctx.sampleRate;
+  const samples = lastBuffer;
+  const numSamples = samples.length;
+
+  // Build WAV file
+  const dataSize = numSamples * 2; // 16-bit
+  const buf = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buf);
+
+  // RIFF header
+  writeStr(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(view, 8, 'WAVE');
+  writeStr(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);       // chunk size
+  view.setUint16(20, 1, true);        // PCM
+  view.setUint16(22, 1, true);        // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true);        // block align
+  view.setUint16(34, 16, true);       // bits per sample
+  writeStr(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // PCM data
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s * 32767, true);
+    offset += 2;
+  }
+
+  const blob = new Blob([buf], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'bubble.wav';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function writeStr(view, offset, str) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
+// ============================================================
+// Bubble canvas visualization
+// ============================================================
+
+const bubbleCanvas = document.getElementById('bubbleCanvas');
+const bubbleCtx = bubbleCanvas.getContext('2d');
+
+function drawBubble() {
+  const rect = bubbleCanvas.getBoundingClientRect();
+  bubbleCanvas.width = rect.width * devicePixelRatio;
+  bubbleCanvas.height = rect.height * devicePixelRatio;
+  bubbleCtx.scale(devicePixelRatio, devicePixelRatio);
+  const w = rect.width;
+  const h = rect.height;
+
+  // Clear
+  bubbleCtx.fillStyle = '#0a0a1e';
+  bubbleCtx.fillRect(0, 0, w, h);
+
+  const interfaceType = getInterfaceType();
+  const zoom = parseFloat(document.getElementById('zoom').value);
+  const depthDiameters = parseFloat(document.getElementById('depth').value);
+
+  // Surface bar (5%-10% of height)
+  bubbleCtx.fillStyle = interfaceType === 1 ? '#3498db' : '#e74c3c';
+  bubbleCtx.fillRect(0, h * 0.05, w, h * 0.05);
+
+  // Bubble size and position (matching Python logic)
+  const bubbleHeight = 0.9 / zoom; // fraction of canvas height
+  const bubR = h * bubbleHeight / 2;
+  const barBottom = h * 0.1;
+  const bubCenterY = barBottom + 2 * bubR * depthDiameters;
+
+  // Depth scale markings
+  bubbleCtx.strokeStyle = 'rgba(255,255,255,0.15)';
+  bubbleCtx.lineWidth = 1;
+  bubbleCtx.setLineDash([3, 5]);
+  const maxDepthMarks = Math.min(Math.floor(zoom), 20);
+  for (let i = 1; i <= maxDepthMarks; i += (maxDepthMarks > 10 ? 2 : 1)) {
+    const my = barBottom + 2 * bubR * i;
+    if (my > h - 10) break;
+    bubbleCtx.beginPath();
+    bubbleCtx.moveTo(10, my);
+    bubbleCtx.lineTo(30, my);
+    bubbleCtx.stroke();
+    bubbleCtx.fillStyle = 'rgba(255,255,255,0.3)';
+    bubbleCtx.font = '10px system-ui';
+    bubbleCtx.fillText(i + 'd', 33, my + 3);
+  }
+  bubbleCtx.setLineDash([]);
+
+  // Draw bubble
+  if (bubCenterY - bubR < h && bubCenterY + bubR > barBottom) {
+    bubbleCtx.strokeStyle = '#ffffff';
+    bubbleCtx.lineWidth = 2.5;
+    bubbleCtx.beginPath();
+    bubbleCtx.arc(w / 2, bubCenterY, Math.max(bubR, 2), 0, 2 * Math.PI);
+    bubbleCtx.stroke();
+
+    // Slight highlight
+    bubbleCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+    bubbleCtx.lineWidth = 1;
+    bubbleCtx.beginPath();
+    bubbleCtx.arc(w / 2 - bubR * 0.3, bubCenterY - bubR * 0.3, bubR * 0.4, 0, 2 * Math.PI);
+    bubbleCtx.stroke();
+  }
+}
+
+// ============================================================
+// Waveform canvas
+// ============================================================
+
+const waveCanvas = document.getElementById('waveCanvas');
+const waveCtx = waveCanvas.getContext('2d');
+
+function drawWaveform(displacement) {
+  const rect = waveCanvas.getBoundingClientRect();
+  waveCanvas.width = rect.width * devicePixelRatio;
+  waveCanvas.height = rect.height * devicePixelRatio;
+  waveCtx.scale(devicePixelRatio, devicePixelRatio);
+  const w = rect.width;
+  const h = rect.height;
+
+  waveCtx.fillStyle = '#fff';
+  waveCtx.fillRect(0, 0, w, h);
+
+  if (!displacement) {
+    waveCtx.fillStyle = '#ccc';
+    waveCtx.font = '13px system-ui';
+    waveCtx.textAlign = 'center';
+    waveCtx.fillText('Waveform will appear here after playback', w / 2, h / 2);
+    return;
+  }
+
+  // Find max for normalization
+  let maxAbs = 0;
+  for (let i = 0; i < displacement.length; i++) {
+    const a = Math.abs(displacement[i]);
+    if (a > maxAbs) maxAbs = a;
+  }
+  if (maxAbs === 0) maxAbs = 1;
+
+  const labelMargin = 40; // match spectrogram left margin
+  const plotW = w - labelMargin;
+  const midY = h / 2;
+  const amp = (h / 2) * 0.9;
+
+  // Zero line
+  waveCtx.strokeStyle = '#e0e0e0';
+  waveCtx.lineWidth = 1;
+  waveCtx.beginPath();
+  waveCtx.moveTo(labelMargin, midY);
+  waveCtx.lineTo(w, midY);
+  waveCtx.stroke();
+
+  // Jet onset marker
+  const jetX = labelMargin + plotW * JET_ONSET;
+  waveCtx.strokeStyle = '#e74c3c';
+  waveCtx.lineWidth = 1;
+  waveCtx.setLineDash([4, 4]);
+  waveCtx.beginPath();
+  waveCtx.moveTo(jetX, 0);
+  waveCtx.lineTo(jetX, h);
+  waveCtx.stroke();
+  waveCtx.setLineDash([]);
+  waveCtx.fillStyle = '#e74c3c';
+  waveCtx.font = '10px system-ui';
+  waveCtx.fillText('jet onset', jetX + 3, 12);
+
+  // Waveform — min/max envelope to avoid aliasing
+  // Map samples into the plot area (labelMargin to w)
+  const plotPxW = Math.ceil(plotW);
+  const samplesPerPx = displacement.length / plotPxW;
+  if (samplesPerPx <= 2) {
+    waveCtx.strokeStyle = '#2c3e50';
+    waveCtx.lineWidth = 1;
+    waveCtx.beginPath();
+    for (let px = 0; px < plotPxW; px++) {
+      const idx = Math.floor(px / plotPxW * displacement.length);
+      const y = midY - (displacement[idx] / maxAbs) * amp;
+      const x = labelMargin + px;
+      if (px === 0) waveCtx.moveTo(x, y);
+      else waveCtx.lineTo(x, y);
+    }
+    waveCtx.stroke();
+  } else {
+    const mins = new Float64Array(plotPxW);
+    const maxs = new Float64Array(plotPxW);
+    mins.fill(Infinity);
+    maxs.fill(-Infinity);
+    for (let i = 0; i < displacement.length; i++) {
+      const px = Math.min(plotPxW - 1, Math.floor(i / displacement.length * plotPxW));
+      const v = displacement[i] / maxAbs;
+      if (v < mins[px]) mins[px] = v;
+      if (v > maxs[px]) maxs[px] = v;
+    }
+    waveCtx.fillStyle = 'rgba(44, 62, 80, 0.35)';
+    waveCtx.beginPath();
+    for (let px = 0; px < plotPxW; px++) {
+      const x = labelMargin + px;
+      const y = midY - maxs[px] * amp;
+      if (px === 0) waveCtx.moveTo(x, y);
+      else waveCtx.lineTo(x, y);
+    }
+    for (let px = plotPxW - 1; px >= 0; px--) {
+      const x = labelMargin + px;
+      const y = midY - mins[px] * amp;
+      waveCtx.lineTo(x, y);
+    }
+    waveCtx.closePath();
+    waveCtx.fill();
+    waveCtx.strokeStyle = '#2c3e50';
+    waveCtx.lineWidth = 0.75;
+    waveCtx.beginPath();
+    for (let px = 0; px < plotPxW; px++) {
+      const y = midY - maxs[px] * amp;
+      if (px === 0) waveCtx.moveTo(labelMargin + px, y);
+      else waveCtx.lineTo(labelMargin + px, y);
+    }
+    waveCtx.stroke();
+    waveCtx.beginPath();
+    for (let px = 0; px < plotPxW; px++) {
+      const y = midY - mins[px] * amp;
+      if (px === 0) waveCtx.moveTo(labelMargin + px, y);
+      else waveCtx.lineTo(labelMargin + px, y);
+    }
+    waveCtx.stroke();
+  }
+
+  // Time labels
+  waveCtx.fillStyle = '#999';
+  waveCtx.font = '10px system-ui';
+  waveCtx.textAlign = 'left';
+  waveCtx.fillText('0s', labelMargin + 2, h - 3);
+  waveCtx.textAlign = 'center';
+  waveCtx.fillText('0.5s', labelMargin + plotW / 2, h - 3);
+  waveCtx.textAlign = 'right';
+  waveCtx.fillText('1.0s', w - 2, h - 3);
+}
+
+// ============================================================
+// FFT and Spectrogram
+// ============================================================
+
+const spectrogramCanvas = document.getElementById('spectrogramCanvas');
+const spectroCtx = spectrogramCanvas.getContext('2d');
+
+// Radix-2 Cooley-Tukey FFT (in-place, complex)
+function fft(re, im) {
+  const N = re.length;
+  // Bit-reversal permutation
+  for (let i = 1, j = 0; i < N; i++) {
+    let bit = N >> 1;
+    while (j & bit) { j ^= bit; bit >>= 1; }
+    j ^= bit;
+    if (i < j) {
+      let tmp = re[i]; re[i] = re[j]; re[j] = tmp;
+      tmp = im[i]; im[i] = im[j]; im[j] = tmp;
+    }
+  }
+  // Butterfly stages
+  for (let len = 2; len <= N; len <<= 1) {
+    const halfLen = len >> 1;
+    const angle = -2 * Math.PI / len;
+    const wRe = Math.cos(angle), wIm = Math.sin(angle);
+    for (let i = 0; i < N; i += len) {
+      let curRe = 1, curIm = 0;
+      for (let j = 0; j < halfLen; j++) {
+        const a = i + j, b = a + halfLen;
+        const tRe = curRe * re[b] - curIm * im[b];
+        const tIm = curRe * im[b] + curIm * re[b];
+        re[b] = re[a] - tRe; im[b] = im[a] - tIm;
+        re[a] += tRe; im[a] += tIm;
+        const nextRe = curRe * wRe - curIm * wIm;
+        curIm = curRe * wIm + curIm * wRe;
+        curRe = nextRe;
+      }
+    }
+  }
+}
+
+// Precompute Hanning window
+const FFT_SIZE = 16384;    // Zero-padded FFT size (frequency bin spacing)
+const WIN_SIZE = 4096;     // Analysis window length (time resolution: ~43ms)
+const HOP_SIZE = 512;
+const hanningWindow = new Float64Array(WIN_SIZE);
+for (let i = 0; i < WIN_SIZE; i++) {
+  hanningWindow[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (WIN_SIZE - 1)));
+}
+
+
+// Spectrogram color map (black → blue → purple → red → orange → yellow)
+const colorMap = new Uint8Array(256 * 3);
+(function buildColorMap() {
+  const stops = [
+    [0, 0, 0, 0],       // black
+    [0.2, 20, 20, 80],   // dark blue
+    [0.4, 80, 20, 100],  // purple
+    [0.6, 180, 30, 30],  // red
+    [0.8, 220, 140, 20], // orange
+    [1.0, 255, 255, 80]  // yellow
+  ];
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255;
+    let s0 = stops[0], s1 = stops[1];
+    for (let j = 1; j < stops.length; j++) {
+      if (t <= stops[j][0]) { s0 = stops[j - 1]; s1 = stops[j]; break; }
+    }
+    const f = (t - s0[0]) / (s1[0] - s0[0]);
+    colorMap[i * 3] = Math.round(s0[1] + f * (s1[1] - s0[1]));
+    colorMap[i * 3 + 1] = Math.round(s0[2] + f * (s1[2] - s0[2]));
+    colorMap[i * 3 + 2] = Math.round(s0[3] + f * (s1[3] - s0[3]));
+  }
+})();
+
+const SAMPLE_RATE = 96000;
+const FREQ_MIN = 100;
+const FREQ_MAX = 10000;
+const DB_FLOOR = -60;
+
+function computeSpectrogram(displacement, freqMin, freqMax) {
+  const numFrames = Math.floor((displacement.length - WIN_SIZE) / HOP_SIZE) + 1;
+  const binMin = Math.floor(freqMin * FFT_SIZE / SAMPLE_RATE);
+  const binMax = Math.ceil(freqMax * FFT_SIZE / SAMPLE_RATE);
+  const numBins = binMax - binMin;
+
+  const magnitudes = new Array(numFrames);
+  const re = new Float64Array(FFT_SIZE);
+  const im = new Float64Array(FFT_SIZE);
+
+  for (let f = 0; f < numFrames; f++) {
+    const offset = f * HOP_SIZE;
+    // Window the signal, then zero-pad to FFT_SIZE
+    for (let i = 0; i < WIN_SIZE; i++) {
+      re[i] = (offset + i < displacement.length) ? displacement[offset + i] * hanningWindow[i] : 0;
+    }
+    for (let i = WIN_SIZE; i < FFT_SIZE; i++) re[i] = 0;
+    im.fill(0);
+    fft(re, im);
+    const frame = new Float64Array(numBins);
+    for (let b = 0; b < numBins; b++) {
+      const bi = b + binMin;
+      const mag = Math.sqrt(re[bi] * re[bi] + im[bi] * im[bi]);
+      frame[b] = mag > 0 ? 20 * Math.log10(mag) : -400;
+    }
+    magnitudes[f] = frame;
+  }
+
+  // Use median of per-frame max values as reference level
+  // This prevents the broadband jet impulse from washing out tonal content
+  const frameMax = new Float64Array(numFrames);
+  for (let f = 0; f < numFrames; f++) {
+    let fmax = -Infinity;
+    for (let b = 0; b < numBins; b++) {
+      if (magnitudes[f][b] > fmax) fmax = magnitudes[f][b];
+    }
+    frameMax[f] = fmax;
+  }
+  // Peak frame max (excluding pre-signal silence)
+  let peakFrameMax = -Infinity;
+  for (let f = 0; f < numFrames; f++) {
+    if (frameMax[f] > peakFrameMax) peakFrameMax = frameMax[f];
+  }
+
+  return { magnitudes, numFrames, numBins, binMin, binMax, frameMax, peakFrameMax, freqMin, freqMax };
+}
+
+function drawSpectrogram(spectroData, params) {
+  const rect = spectrogramCanvas.getBoundingClientRect();
+  spectrogramCanvas.width = rect.width * devicePixelRatio;
+  spectrogramCanvas.height = rect.height * devicePixelRatio;
+  spectroCtx.scale(devicePixelRatio, devicePixelRatio);
+  const w = rect.width;
+  const h = rect.height;
+
+  if (!spectroData) {
+    spectroCtx.fillStyle = '#000';
+    spectroCtx.fillRect(0, 0, w, h);
+    spectroCtx.fillStyle = '#555';
+    spectroCtx.font = '13px system-ui';
+    spectroCtx.textAlign = 'center';
+    spectroCtx.fillText('Spectrogram will appear here after playback', w / 2, h / 2);
+    return;
+  }
+
+  const { magnitudes, numFrames, numBins, binMin, binMax, frameMax } = spectroData;
+  const labelMargin = 40; // left margin for frequency labels
+  const plotW = w - labelMargin;
+  const plotH = h - 5; // small bottom margin
+
+  // Precompute frame lookup for each pixel column
+  const freqMin = spectroData.freqMin;
+  const freqMax = spectroData.freqMax;
+  const logMin = Math.log10(freqMin);
+  const logMax = Math.log10(freqMax);
+
+  // Render spectrogram pixels
+  const imgData = spectroCtx.createImageData(spectrogramCanvas.width, spectrogramCanvas.height);
+  const data = imgData.data;
+  const dpr = devicePixelRatio;
+
+  for (let py = 0; py < h; py++) {
+    const freqFrac = 1 - py / plotH;
+    const freq = Math.pow(10, logMin + freqFrac * (logMax - logMin));
+    const bin = freq * FFT_SIZE / SAMPLE_RATE - binMin;
+    const binIdx = Math.max(0, Math.min(numBins - 1, Math.round(bin)));
+
+    for (let px = 0; px < w; px++) {
+      let r = 0, g = 0, b = 0;
+      if (px >= labelMargin) {
+        const frameFrac = (px - labelMargin) / plotW;
+        const frameIdx = Math.min(numFrames - 1, Math.max(0, Math.round(frameFrac * (numFrames - 1))));
+        const db = magnitudes[frameIdx][binIdx];
+        // Per-frame normalization with silence gating
+        const refMax = frameMax[frameIdx];
+        // Gate frames that are much quieter than the peak frame
+        const frameBrightness = refMax > spectroData.peakFrameMax - 80
+          ? Math.min(1, (refMax - (spectroData.peakFrameMax - 80)) / 30)
+          : 0;
+        const linear = Math.max(0, Math.min(1, (db - (refMax + DB_FLOOR)) / (-DB_FLOOR)));
+        const normalized = Math.sqrt(linear) * frameBrightness;
+        const ci = Math.round(normalized * 255) * 3;
+        r = colorMap[ci]; g = colorMap[ci + 1]; b = colorMap[ci + 2];
+      }
+      // Write to all device pixels for this CSS pixel
+      for (let dy = 0; dy < dpr; dy++) {
+        for (let dx = 0; dx < dpr; dx++) {
+          const ix = Math.round(px * dpr + dx);
+          const iy = Math.round(py * dpr + dy);
+          if (ix < imgData.width && iy < imgData.height) {
+            const idx = (iy * imgData.width + ix) * 4;
+            data[idx] = r; data[idx + 1] = g; data[idx + 2] = b; data[idx + 3] = 255;
+          }
+        }
+      }
+    }
+  }
+  spectroCtx.putImageData(imgData, 0, 0);
+
+  // Reset scale after putImageData (which works in raw pixels)
+  spectroCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // Frequency axis labels — pick nice round numbers within the range
+  const niceFreqs = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900,
+                     1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000,
+                     8000, 9000, 10000, 12000, 15000, 20000];
+  const freqLabels = niceFreqs.filter(f => f >= freqMin * 1.05 && f <= freqMax * 0.95);
+  spectroCtx.fillStyle = '#aaa';
+  spectroCtx.font = '9px system-ui';
+  spectroCtx.textAlign = 'right';
+  // Limit to ~6 labels max
+  const labelStep = Math.max(1, Math.ceil(freqLabels.length / 6));
+  for (let li = 0; li < freqLabels.length; li += labelStep) {
+    const freq = freqLabels[li];
+    const frac = (Math.log10(freq) - logMin) / (logMax - logMin);
+    const py = plotH * (1 - frac);
+    if (py < 5 || py > plotH - 5) continue;
+    const label = freq >= 1000 ? (freq / 1000) + 'kHz' : freq + 'Hz';
+    spectroCtx.fillText(label, labelMargin - 4, py + 3);
+    // Tick mark
+    spectroCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+    spectroCtx.lineWidth = 0.5;
+    spectroCtx.beginPath();
+    spectroCtx.moveTo(labelMargin - 2, py);
+    spectroCtx.lineTo(labelMargin + 3, py);
+    spectroCtx.stroke();
+  }
+
+  // Frequency overlay lines
+  if (params) {
+    const { r, d0, motionType, interfaceType } = params;
+
+    // Helper: freq to y position
+    function freqToY(f) {
+      const frac = (Math.log10(Math.max(freqMin, Math.min(freqMax, f))) - logMin) / (logMax - logMin);
+      return plotH * (1 - frac);
+    }
+
+    // Minnaert frequency — constant horizontal line
+    const mf = minnaertFreq(r);
+    if (mf >= freqMin && mf <= freqMax) {
+      const my = freqToY(mf);
+      spectroCtx.strokeStyle = 'rgba(255,255,255,0.7)';
+      spectroCtx.lineWidth = 1;
+      spectroCtx.setLineDash([6, 4]);
+      spectroCtx.beginPath();
+      spectroCtx.moveTo(labelMargin, my);
+      spectroCtx.lineTo(w, my);
+      spectroCtx.stroke();
+      spectroCtx.setLineDash([]);
+      spectroCtx.fillStyle = 'rgba(255,255,255,0.8)';
+      spectroCtx.font = '9px system-ui';
+      spectroCtx.textAlign = 'left';
+      spectroCtx.fillText('Minnaert', labelMargin + 3, my - 3);
+    }
+
+    // Actual frequency — may vary over time for rising bubbles
+    spectroCtx.strokeStyle = 'rgba(100,220,255,0.8)';
+    spectroCtx.lineWidth = 1;
+    spectroCtx.setLineDash([4, 3]);
+    spectroCtx.beginPath();
+    const numFrames = spectroData.numFrames;
+    const vt = motionType === 2 ? terminalVelocity(r) : 0;
+    for (let f = 0; f < numFrames; f++) {
+      const t = (f * HOP_SIZE) / SAMPLE_RATE;
+      let d = d0;
+      if (motionType === 2 && t >= JET_ONSET) {
+        d = Math.max(0.51 * 2 * r, d0 - (t - JET_ONSET) * vt);
+      }
+      const af = actualFreq(r, d, interfaceType);
+      if (af < freqMin || af > freqMax) continue;
+      const px = labelMargin + (f / (numFrames - 1)) * plotW;
+      const py = freqToY(af);
+      if (f === 0) spectroCtx.moveTo(px, py);
+      else spectroCtx.lineTo(px, py);
+    }
+    spectroCtx.stroke();
+    spectroCtx.setLineDash([]);
+    // Label at the start
+    const af0 = actualFreq(r, d0, interfaceType);
+    if (af0 >= freqMin && af0 <= freqMax) {
+      spectroCtx.fillStyle = 'rgba(100,220,255,0.9)';
+      spectroCtx.font = '9px system-ui';
+      spectroCtx.textAlign = 'left';
+      spectroCtx.fillText('Actual', labelMargin + 3, freqToY(af0) + 12);
+    }
+  }
+}
+
+// ============================================================
+// Rising bubble animation
+// ============================================================
+
+let animationId = null;
+
+function animateRisingBubble(r, d0, duration) {
+  const motionType = getMotionType();
+  if (motionType !== 2) return; // only animate in rising mode
+
+  const vt = terminalVelocity(r);
+  const startTime = performance.now();
+  const jetOnsetFrac = JET_ONSET;
+
+  function frame(now) {
+    const elapsed = (now - startTime) / 1000; // seconds
+    if (elapsed >= duration) {
+      drawBubble(); // restore static position
+      animationId = null;
+      return;
+    }
+
+    // Compute current depth (same as ODE)
+    let currentDepthM = d0;
+    if (elapsed >= jetOnsetFrac) {
+      currentDepthM = Math.max(0.51 * 2 * r, d0 - (elapsed - jetOnsetFrac) * vt);
+    }
+
+    // Convert back to diameters for drawing
+    const depthDiameters = currentDepthM / (2 * r);
+
+    // Draw with overridden depth
+    drawBubbleWithDepth(depthDiameters);
+    animationId = requestAnimationFrame(frame);
+  }
+
+  animationId = requestAnimationFrame(frame);
+}
+
+function drawBubbleWithDepth(overrideDepth) {
+  const rect = bubbleCanvas.getBoundingClientRect();
+  bubbleCanvas.width = rect.width * devicePixelRatio;
+  bubbleCanvas.height = rect.height * devicePixelRatio;
+  bubbleCtx.scale(devicePixelRatio, devicePixelRatio);
+  const w = rect.width;
+  const h = rect.height;
+
+  bubbleCtx.fillStyle = '#0a0a1e';
+  bubbleCtx.fillRect(0, 0, w, h);
+
+  const interfaceType = getInterfaceType();
+  const zoom = parseFloat(document.getElementById('zoom').value);
+
+  bubbleCtx.fillStyle = interfaceType === 1 ? '#3498db' : '#e74c3c';
+  bubbleCtx.fillRect(0, h * 0.05, w, h * 0.05);
+
+  const bubbleHeight = 0.9 / zoom;
+  const bubR = h * bubbleHeight / 2;
+  const barBottom = h * 0.1;
+  const bubCenterY = barBottom + 2 * bubR * overrideDepth;
+
+  if (bubCenterY - bubR < h && bubCenterY + bubR > barBottom) {
+    bubbleCtx.strokeStyle = '#ffffff';
+    bubbleCtx.lineWidth = 2.5;
+    bubbleCtx.beginPath();
+    bubbleCtx.arc(w / 2, bubCenterY, Math.max(bubR, 2), 0, 2 * Math.PI);
+    bubbleCtx.stroke();
+
+    bubbleCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+    bubbleCtx.lineWidth = 1;
+    bubbleCtx.beginPath();
+    bubbleCtx.arc(w / 2 - bubR * 0.3, bubCenterY - bubR * 0.3, bubR * 0.4, 0, 2 * Math.PI);
+    bubbleCtx.stroke();
+  }
+}
+
+// ============================================================
+// UI helpers
+// ============================================================
+
+function getMotionType() {
+  return parseInt(document.querySelector('input[name="motion"]:checked').value);
+}
+
+function getInterfaceType() {
+  return parseInt(document.querySelector('input[name="interface"]:checked').value);
+}
+
+function getParams() {
+  const radiusMM = parseFloat(document.getElementById('radius').value);
+  const depthDiameters = parseFloat(document.getElementById('depth').value);
+  const r = radiusMM / 1000;
+  const d = depthDiameters * r * 2;
+  return { r, d, radiusMM, depthDiameters };
+}
+
+function updateFrequencyDisplay() {
+  const { r, d } = getParams();
+  const interfaceType = getInterfaceType();
+  const mf = minnaertFreq(r);
+  const af = actualFreq(r, d, interfaceType);
+  document.getElementById('minnaertFreq').textContent = mf.toFixed(1);
+  document.getElementById('actualFreq').textContent = af.toFixed(1);
+}
+
+function updateSliderLabels() {
+  document.getElementById('zoomVal').textContent = parseFloat(document.getElementById('zoom').value).toFixed(1);
+  document.getElementById('depthVal').textContent = parseFloat(document.getElementById('depth').value).toFixed(1);
+  document.getElementById('radiusVal').textContent = parseFloat(document.getElementById('radius').value).toFixed(1) + ' mm';
+}
+
+// ============================================================
+// Event wiring
+// ============================================================
+
+const zoomSlider = document.getElementById('zoom');
+const depthSlider = document.getElementById('depth');
+const radiusSlider = document.getElementById('radius');
+const playBtn = document.getElementById('playBtn');
+const wavBtn = document.getElementById('wavBtn');
+
+function onParamChange() {
+  // Cap depth max to zoom - 0.5
+  const zoom = parseFloat(zoomSlider.value);
+  depthSlider.max = zoom - 0.5;
+  if (parseFloat(depthSlider.value) > zoom - 0.5) {
+    depthSlider.value = zoom - 0.5;
+  }
+  updateSliderLabels();
+  updateFrequencyDisplay();
+  drawBubble();
+}
+
+zoomSlider.addEventListener('input', onParamChange);
+depthSlider.addEventListener('input', onParamChange);
+radiusSlider.addEventListener('input', onParamChange);
+document.querySelectorAll('input[name="motion"]').forEach(el => el.addEventListener('change', onParamChange));
+document.querySelectorAll('input[name="interface"]').forEach(el => el.addEventListener('change', onParamChange));
+
+playBtn.addEventListener('click', async () => {
+  playBtn.disabled = true;
+  playBtn.textContent = 'Computing...';
+
+  // Defer to next frame so the button updates
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const { r, d } = getParams();
+  const motionType = getMotionType();
+  const interfaceType = getInterfaceType();
+
+  const t0 = performance.now();
+  const displacement = integrate(r, d, motionType, interfaceType);
+  const elapsed = performance.now() - t0;
+  console.log(`Integration: ${elapsed.toFixed(1)} ms`);
+
+  drawWaveform(displacement);
+
+  const f0 = minnaertFreq(r);
+  const spectroFreqMin = Math.max(20, f0 / 2.5);
+  const spectroFreqMax = Math.min(SAMPLE_RATE / 2, f0 * 2.5);
+  const spectroData = computeSpectrogram(displacement, spectroFreqMin, spectroFreqMax);
+  drawSpectrogram(spectroData, { r, d0: d, motionType, interfaceType });
+
+  playBtn.textContent = 'Playing...';
+  wavBtn.disabled = false;
+
+  // Start rising animation if applicable
+  if (motionType === 2) {
+    animateRisingBubble(r, d, 1.0);
+  }
+
+  await normalizeAndPlay(displacement);
+
+  playBtn.disabled = false;
+  playBtn.textContent = 'Play Bubble';
+});
+
+wavBtn.addEventListener('click', downloadWav);
+
+// Space bar shortcut
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target === document.body) {
+    e.preventDefault();
+    if (!playBtn.disabled) playBtn.click();
+  }
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  drawBubble();
+  if (lastBuffer) {
+    // Re-derive displacement from lastBuffer for waveform? Just clear it.
+    // We'd need original displacement; just redraw waveform canvas placeholder
+  }
+});
+
+// ============================================================
+// Init
+// ============================================================
+
+onParamChange();
+drawWaveform(null);
+drawSpectrogram(null);
+</script>
+
+</body>
+</html>

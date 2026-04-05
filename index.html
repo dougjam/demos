@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demos</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 2rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+.subtitle { color: #555; font-size: 0.95rem; margin-bottom: 2rem; }
+.demo-card {
+  display: flex;
+  gap: 1.25rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.demo-card:hover {
+  border-color: #2563eb;
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.12);
+}
+.demo-thumb {
+  width: 200px;
+  min-height: 120px;
+  border-radius: 6px;
+  background: #0a0a1e;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.demo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.demo-thumb .placeholder {
+  color: #556;
+  font-size: 2.5rem;
+}
+.demo-info { display: flex; flex-direction: column; justify-content: center; }
+.demo-info h2 { font-size: 1.15rem; margin-bottom: 0.25rem; }
+.demo-info p { color: #555; font-size: 0.9rem; }
+.demo-info .tag {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  background: #eef2ff;
+  color: #3b5998;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+@media (max-width: 500px) {
+  .demo-card { flex-direction: column; }
+  .demo-thumb { width: 100%; min-height: 140px; }
+}
+</style>
+</head>
+<body>
+
+<h1>Demos</h1>
+<p class="subtitle">Interactive demos for teaching and research.</p>
+
+<a class="demo-card" href="bubbleDemo2016/">
+  <div class="demo-thumb">
+    <span class="placeholder">&#x25EF;</span>
+  </div>
+  <div class="demo-info">
+    <h2>Acoustic Bubble Simulator</h2>
+    <p>
+      Physically based synthesis of the sound produced by an air bubble
+      oscillating underwater. Explore Minnaert resonance, damping mechanisms,
+      and rising bubble pitch glides with real-time waveform and spectrogram
+      visualization.
+    </p>
+    <span class="tag">Acoustics</span>
+  </div>
+</a>
+
+</body>
+</html>
