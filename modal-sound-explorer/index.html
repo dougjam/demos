@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modal Sound Explorer</title>
+<style>
+/* ============================================================
+   A. CSS — Layout, Controls, Responsive
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 1rem;
+}
+
+header {
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+}
+header h1 { font-size: 1.6rem; }
+header .subtitle { color: #555; font-size: 0.9rem; }
+header .back-link { font-size: 0.85rem; color: #2563eb; text-decoration: none; }
+header .back-link:hover { text-decoration: underline; }
+
+.app-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: auto auto;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.main-panel {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.control-panel {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-self: start;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.energy-panel {
+  grid-column: 1;
+}
+
+/* Object canvas */
+.object-container {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0.75rem;
+  position: relative;
+}
+.object-container canvas {
+  width: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* Mode gallery */
+.mode-gallery-label { font-size: 0.8rem; font-weight: 600; color: #555; }
+.mode-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+.mode-thumb {
+  background: #fff;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  padding: 3px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, opacity 0.15s;
+  position: relative;
+}
+.mode-thumb canvas { width: 100%; display: block; border-radius: 3px; }
+.mode-thumb .mode-label {
+  font-size: 0.65rem;
+  color: #555;
+  line-height: 1.2;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mode-thumb.active { border-color: #2563eb; }
+.mode-thumb.excited { box-shadow: 0 0 6px rgba(37, 99, 235, 0.5); }
+.mode-thumb.disabled { opacity: 0.35; border-color: #ccc; }
+
+/* Energy bars */
+.energy-container {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+}
+.energy-container canvas { width: 100%; display: block; }
+
+/* Control panel elements */
+.ctrl-section { margin-bottom: 0.25rem; }
+.ctrl-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+
+/* Segmented button bar */
+.seg-bar {
+  display: flex;
+  gap: 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg-bar button {
+  flex: 1;
+  padding: 0.35rem 0.25rem;
+  border: none;
+  background: #fff;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: #333;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid #ddd;
+}
+.seg-bar button:last-child { border-right: none; }
+.seg-bar button:hover { background: #f0f4ff; }
+.seg-bar button.active { background: #2563eb; color: #fff; }
+
+/* Material buttons */
+.material-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+.material-grid button {
+  padding: 0.3rem 0.1rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.material-grid button:hover { background: #f0f4ff; border-color: #aaa; }
+.material-grid button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+/* Slider rows */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.slider-row label {
+  font-size: 0.8rem;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.slider-row input[type="range"] { flex: 1; min-width: 0; }
+.slider-row .slider-val {
+  font-size: 0.75rem;
+  min-width: 52px;
+  text-align: right;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+}
+.slider-hint {
+  font-size: 0.7rem;
+  color: #999;
+  margin-top: -0.15rem;
+  margin-bottom: 0.2rem;
+}
+
+/* Action buttons */
+.action-btn {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s;
+  width: 100%;
+}
+.action-btn:hover { background: #f0f4ff; }
+
+/* Two-line segmented buttons */
+.seg-bar-multi button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+  padding: 0.3rem 0.15rem;
+}
+.seg-bar-multi .seg-main { font-size: 0.75rem; font-weight: 600; }
+.seg-bar-multi .seg-sub { font-size: 0.62rem; font-weight: 400; opacity: 0.7; }
+.seg-bar-multi button.active .seg-sub { opacity: 0.9; }
+
+/* About the physics model */
+details {
+  max-width: 1200px;
+  margin: 1rem auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+details .info-content {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+  line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app-grid {
+    grid-template-columns: 1fr;
+  }
+  .control-panel {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    max-height: none;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back-link" href="../index.html">&larr; Back to demos</a>
+  <h1>Modal Sound Explorer</h1>
+  <p class="subtitle">Interactive modal vibration and sound synthesis. Click an object to strike it and hear its modes.</p>
+</header>
+
+<div class="app-grid">
+  <!-- Main panel: object display + mode gallery -->
+  <div class="main-panel">
+    <div class="object-container">
+      <canvas id="objectCanvas" width="800" height="300"></canvas>
+    </div>
+    <div class="energy-container">
+      <div class="mode-gallery-label">Modal Excitations</div>
+      <canvas id="energyCanvas" width="800" height="200"></canvas>
+    </div>
+    <div>
+      <div class="mode-gallery-label">Mode Shapes (click to toggle)</div>
+      <div class="mode-gallery" id="modeGallery"></div>
+    </div>
+  </div>
+
+  <!-- Control panel -->
+  <div class="control-panel">
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">Object Type</div>
+      <div class="seg-bar seg-bar-multi" id="objectTypeBar">
+        <button class="active" data-type="string"><span class="seg-main">String</span><span class="seg-sub">(Dirichlet)</span></button>
+        <button data-type="bar"><span class="seg-main">E-B Beam</span><span class="seg-sub">(Free)</span></button>
+        <button data-type="membrane"><span class="seg-main">Membrane</span><span class="seg-sub">(Fixed)</span></button>
+        <button data-type="plate"><span class="seg-main">Plate</span><span class="seg-sub">(SS)</span></button>
+      </div>
+      <div class="slider-hint" id="objectTypeHint">1D wave equation, fixed-fixed boundary conditions</div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">Material Preset</div>
+      <div class="material-grid" id="materialGrid">
+        <button data-mat="steel">Steel</button>
+        <button data-mat="aluminum">Aluminum</button>
+        <button data-mat="glass">Glass</button>
+        <button data-mat="wood">Wood</button>
+        <button data-mat="ceramic">Ceramic</button>
+        <button data-mat="rubber">Rubber</button>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">Frequency &amp; Damping</div>
+      <div class="slider-row">
+        <label>Fundamental</label>
+        <input type="range" id="fundSlider" min="50" max="2000" value="440" step="1">
+        <span class="slider-val" id="fundVal">440 Hz</span>
+      </div>
+      <div class="slider-row">
+        <label>Mass (&alpha;)</label>
+        <input type="range" id="alphaSlider" min="0" max="500" value="10" step="1">
+        <span class="slider-val" id="alphaVal">1.0</span>
+      </div>
+      <div class="slider-hint">Low modes decay faster &rarr;</div>
+      <div class="slider-row">
+        <label>Stiffness (&beta;)</label>
+        <input type="range" id="betaSlider" min="0" max="1000" value="333" step="1">
+        <span class="slider-val" id="betaVal">2.0e-6</span>
+      </div>
+      <div class="slider-hint">High modes decay faster &rarr;</div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">Modes</div>
+      <div class="slider-row">
+        <label># Modes</label>
+        <input type="range" id="numModesSlider" min="1" max="48" value="12" step="1">
+        <span class="slider-val" id="numModesVal">12</span>
+      </div>
+    </div>
+
+    <div class="ctrl-section" id="aspectSection" style="display:none;">
+      <div class="ctrl-section-title">Plate Aspect Ratio</div>
+      <div class="slider-row">
+        <label>a / b</label>
+        <input type="range" id="aspectSlider" min="50" max="200" value="100" step="1">
+        <span class="slider-val" id="aspectVal">1.00</span>
+      </div>
+    </div>
+
+    <button class="action-btn" id="strikeAllBtn">Strike All Modes</button>
+  </div>
+
+</div>
+
+<details>
+  <summary>About the physics model</summary>
+  <div class="info-content">
+    <p>
+      When a solid object is struck, the impact excites <strong>vibrational modes</strong>,
+      which are standing wave patterns each with its own frequency, spatial shape, and decay rate.
+      The total sound is the superposition of all excited modes, each ringing as a decaying
+      sinusoid [1].
+    </p>
+    <p style="margin-top:0.5rem;">
+      This demo implements <strong>four analytical models</strong> from classical vibration theory,
+      organized by spatial dimension (1D or 2D) and restoring-force type (tension or bending stiffness):
+    </p>
+    <ul style="margin:0.5rem 0 0.5rem 1.5rem;">
+      <li><strong>String</strong> (1D, tension): The wave equation with fixed endpoints produces a
+        <strong>harmonic</strong> spectrum f<sub>n</sub>&nbsp;=&nbsp;n&thinsp;f<sub>1</sub>,
+        where mode frequencies are integer multiples of the fundamental.
+        This is why plucked strings produce sounds with a clear musical pitch [1, 4].</li>
+      <li><strong>Euler-Bernoulli Beam</strong> (1D, bending): The 4th-order beam equation with free
+        endpoints produces <strong>inharmonic</strong> frequency ratios that grow as
+        ~n<sup>2</sup>. The resulting non-integer frequency ratios give struck bars their
+        characteristic metallic or bell-like quality [1, 6].</li>
+      <li><strong>Circular Membrane</strong> (2D, tension): The 2D wave equation on a disk with a fixed
+        edge produces frequencies at Bessel-function zeros, which are also inharmonic. This is
+        why drums have an indefinite or ambiguous pitch compared to strings [1, 4].</li>
+      <li><strong>Kirchhoff Plate</strong> (2D, bending): The biharmonic equation on a rectangle with
+        simply supported (SS) edges produces dense, inharmonic spectra with degenerate mode pairs that
+        split when the aspect ratio departs from unity [7]. &ldquo;Simply supported&rdquo; means each
+        edge is held in place (zero displacement) but free to rotate (zero bending moment), like
+        a board resting on ledges that prevent vertical motion but do not clamp the ends.</li>
+    </ul>
+    <p>
+      The key perceptual distinction is between <strong>harmonic</strong> and <strong>inharmonic</strong>
+      spectra. When mode frequencies fall in integer ratios (as in the string), the auditory system
+      fuses them into a single pitch. When they do not (as in the beam, membrane, and plate), the
+      result is a more complex, often metallic or percussive timbre without a clearly defined
+      pitch [1, 4].
+    </p>
+    <p style="margin-top:0.5rem;">
+      <strong>Strike-position coupling:</strong> The excitation amplitude of mode n is proportional
+      to the mode shape evaluated at the strike point, &psi;<sub>n</sub>(x<sub>s</sub>). Striking a
+      nodal line (where &psi;<sub>n</sub>&nbsp;=&nbsp;0) silences that mode entirely [1].
+    </p>
+    <p style="margin-top:0.5rem;">
+      <strong>Rayleigh damping</strong> models energy dissipation as
+      <strong>D</strong>&nbsp;=&nbsp;&alpha;<strong>M</strong>&nbsp;+&nbsp;&beta;<strong>K</strong>.
+      In the modal domain, mode n has decay rate
+      &alpha;<sub>n</sub>&nbsp;=&nbsp;&alpha;/2&nbsp;+&nbsp;&beta;&thinsp;&omega;<sub>n</sub><sup>2</sup>/2.
+      The &alpha; term gives a constant decay rate across all modes (mass-proportional); the &beta; term
+      preferentially damps high-frequency modes (stiffness-proportional). Their balance determines
+      material character: metals have low &alpha; and &beta; (long ring), wood has high &alpha; (short,
+      warm), rubber has both high (dead thud) [3].
+    </p>
+
+    <h4 style="margin-top:0.75rem;">References</h4>
+    <ol style="margin-top:0.25rem; padding-left:1.5em; font-size:0.8rem;">
+      <li>K. van den Doel and D. K. Pai, &ldquo;The Sounds of Physical Shapes,&rdquo;
+        <em>Presence</em>, vol.&nbsp;7, no.&nbsp;4, pp.&nbsp;382&ndash;395, 1998.
+        <a href="https://doi.org/10.1162/105474698565794" target="_blank">doi:10.1162/105474698565794</a></li>
+      <li>C. Zheng and D. L. James, &ldquo;Rigid-Body Fracture Sound with Precomputed Soundbanks,&rdquo;
+        <em>ACM Trans. Graph. (SIGGRAPH 2010)</em>, vol.&nbsp;29, no.&nbsp;3, pp.&nbsp;1&ndash;13, 2010.
+        <a href="https://doi.org/10.1145/1778765.1778806" target="_blank">doi:10.1145/1778765.1778806</a></li>
+      <li>D. L. James, T. R. Langlois, R. Mehra, and C. Zheng, &ldquo;Physically Based Sound
+        for Computer Animation and Virtual Environments,&rdquo; in <em>ACM SIGGRAPH 2016
+        Courses</em> (SIGGRAPH &rsquo;16), Article&nbsp;22, 2016.
+        <a href="https://doi.org/10.1145/2897826.2927375" target="_blank">doi:10.1145/2897826.2927375</a>
+        &#183; <a href="https://graphics.stanford.edu/courses/sound" target="_blank">Project page</a></li>
+      <li>P. M. Morse, <em>Vibration and Sound</em>, 4th&nbsp;ed.
+        American Institute of Physics, 1976. Chapters&nbsp;3&ndash;5.</li>
+      <li>N. H. Fletcher and T. D. Rossing, <em>The Physics of Musical Instruments</em>,
+        2nd&nbsp;ed. Springer, 1998. Chapters&nbsp;2&ndash;3 (vibrating strings, bars, membranes, plates).
+        <a href="https://doi.org/10.1007/978-0-387-21603-4" target="_blank">doi:10.1007/978-0-387-21603-4</a></li>
+      <li>R. D. Blevins, <em>Formulas for Natural Frequency and Mode Shape</em>.
+        Van Nostrand Reinhold, 1979. Table&nbsp;8-1 (beam eigenvalues).
+        <a href="https://doi.org/10.1007/978-3-319-05868-1" target="_blank">doi:10.1007/978-3-319-05868-1</a></li>
+      <li>A. W. Leissa, <em>Vibration of Plates</em>, NASA SP-160, 1969.
+        <a href="https://ntrs.nasa.gov/citations/19700009156" target="_blank">NASA Technical Reports</a></li>
+    </ol>
+  </div>
+</details>
+
+<script>
+// ============================================================
+// C. Constants and Physics Data
+// ============================================================
+
+const SAMPLE_RATE = 44100;
+const BUFFER_DURATION = 3.0;
+const BUFFER_LENGTH = Math.ceil(SAMPLE_RATE * BUFFER_DURATION);
+const PEAK_AMPLITUDE = 0.8;
+
+// Free-free bar eigenvalues (beta_n * L) from cos(bL)cosh(bL) = 1
+// Modes 1-8: exact roots. Modes 9+: approximation beta_n L ≈ (2n+1)π/2.
+const BAR_BETA_L = [4.73004, 7.85320, 10.9956, 14.1372, 17.2788, 20.4204, 23.5619, 26.7035];
+for (let n = 9; n <= 24; n++) BAR_BETA_L.push((2 * n + 1) * Math.PI / 2);
+const BAR_FREQ_RATIOS = BAR_BETA_L.map(b => (b / BAR_BETA_L[0]) ** 2);
+
+// Circular membrane modes: computed by finding zeros of J_m(x) numerically.
+// besselJ() is defined below in the Math Utilities section and is hoisted as a function declaration.
+const MEMBRANE_MODES = (function() {
+  /** Find zeros of J_m(x) in (0, xMax] by scanning for sign changes and bisecting. */
+  function findBesselZeros(m, maxZeros, xMax) {
+    const zeros = [];
+    const dx = 0.1;
+    let prevVal = besselJ(m, 1e-6);
+    for (let x = dx; x <= xMax && zeros.length < maxZeros; x += dx) {
+      const val = besselJ(m, x);
+      if (prevVal * val < 0) {
+        // Bisect to refine
+        let lo = x - dx, hi = x;
+        for (let i = 0; i < 50; i++) {
+          const mid = (lo + hi) / 2;
+          if (besselJ(m, mid) * besselJ(m, lo) < 0) hi = mid;
+          else lo = mid;
+        }
+        zeros.push((lo + hi) / 2);
+      }
+      prevVal = val;
+    }
+    return zeros;
+  }
+
+  const modes = [];
+  // Search m = 0..10, up to 8 radial zeros each, x up to ~50
+  for (let m = 0; m <= 10; m++) {
+    const zeros = findBesselZeros(m, 8, 50);
+    for (let i = 0; i < zeros.length; i++) {
+      modes.push({ m, n: i + 1, jmn: zeros[i] });
+    }
+  }
+  // Sort by ascending j_mn and keep up to 48
+  modes.sort((a, b) => a.jmn - b.jmn);
+  return modes.slice(0, 48);
+})();
+
+// Material presets: fundamental (Hz), alphaR (1/s), betaR (s)
+const MATERIALS = {
+  steel:    { fund: 440,  alpha: 1.0,   beta: 0.000002,  label: 'Steel' },
+  aluminum: { fund: 520,  alpha: 2.0,   beta: 0.000004,  label: 'Aluminum' },
+  glass:    { fund: 880,  alpha: 0.5,   beta: 0.000001,  label: 'Glass' },
+  wood:     { fund: 220,  alpha: 40.0,  beta: 0.00005,   label: 'Wood' },
+  ceramic:  { fund: 660,  alpha: 5.0,   beta: 0.00001,   label: 'Ceramic' },
+  rubber:   { fund: 110,  alpha: 200.0, beta: 0.001,     label: 'Rubber' },
+};
+
+// ============================================================
+// D. Math Utilities
+// ============================================================
+
+/**
+ * Bessel function J_m(x) via ascending power series.
+ * J_m(x) = (x/2)^m * sum_{k=0}^{K} (-1)^k (x/2)^{2k} / (k! * (m+k)!)
+ * Using iterative term update to avoid factorial overflow.
+ */
+function besselJ(m, x) {
+  const K = 20;
+  const halfX = x / 2;
+  // Start with (x/2)^m / m!
+  let prefactor = 1;
+  for (let i = 1; i <= m; i++) {
+    prefactor *= halfX / i;
+  }
+  let term = 1; // k=0 term (before prefactor)
+  let sum = 1;
+  const halfX2 = halfX * halfX;
+  for (let k = 1; k <= K; k++) {
+    term *= -halfX2 / (k * (m + k));
+    sum += term;
+  }
+  return prefactor * sum;
+}
+
+/** Diverging colormap: value in [-1, 1] -> [r, g, b] in [0, 255] */
+function divergingColor(v) {
+  // Blue (-1) -> White (0) -> Red (+1)
+  const t = Math.max(-1, Math.min(1, v));
+  if (t < 0) {
+    const s = 1 + t; // 0 to 1
+    return [Math.round(s * 255), Math.round(s * 255), 255];
+  } else {
+    const s = 1 - t; // 1 to 0
+    return [255, Math.round(s * 255), Math.round(s * 255)];
+  }
+}
+
+/** Frequency color: map normalized index [0,1] -> warm-to-cool HSL */
+function freqColor(t) {
+  // 0 = red/warm (low freq), 1 = blue/cool (high freq)
+  const h = (1 - t) * 20 + t * 220; // hue from 20 (orange) to 220 (blue)
+  return `hsl(${h}, 70%, 50%)`;
+}
+
+// ============================================================
+// E. Object Models
+// ============================================================
+
+/**
+ * Each model provides:
+ *   type: string
+ *   dimension: 1 or 2
+ *   maxModes: number
+ *   freqRatios: number[]  (f_k / f_1)
+ *   modeLabel(k): string
+ *   modeShapeAt(k, pos): number  (pos = {x} for 1D, {x,y} for 2D, normalized 0-1)
+ *   renderModeShape(ctx, k, w, h): void  (draw thumbnail)
+ *   renderObject(ctx, w, h): void  (draw static object)
+ */
+
+function createStringModel() {
+  const maxModes = 48;
+  const freqRatios = [];
+  for (let n = 1; n <= maxModes; n++) freqRatios.push(n);
+
+  return {
+    type: 'string',
+    dimension: 1,
+    maxModes,
+    freqRatios,
+    modeLabel(k) { return `(${k + 1})`; },
+    // x in [0, 1]
+    modeShapeAt(k, pos) {
+      const n = k + 1;
+      return Math.sin(n * Math.PI * pos.x);
+    },
+    renderModeShape(ctx, k, w, h) {
+      const n = k + 1;
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i <= w; i++) {
+        const x = i / w;
+        const y = h / 2 - (h * 0.4) * Math.sin(n * Math.PI * x);
+        i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+      }
+      ctx.stroke();
+      // Rest line
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+    },
+    renderObject(ctx, w, h) {
+      // Draw a horizontal line (rest position)
+      const y = h / 2;
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(40, y);
+      ctx.lineTo(w - 40, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Fixed-end markers
+      ctx.fillStyle = '#333';
+      ctx.fillRect(35, y - 15, 5, 30);
+      ctx.fillRect(w - 40, y - 15, 5, 30);
+    },
+    strikeAllPos() { return { x: 0.37 }; } // off-center to excite most modes
+  };
+}
+
+function createBarModel() {
+  const maxModes = 24;
+  const freqRatios = BAR_FREQ_RATIOS.slice(0, maxModes);
+
+  // Precompute mode shapes on a 200-point grid
+  const GRID = 200;
+  const shapes = [];
+  const sigmas = [];
+  for (let k = 0; k < maxModes; k++) {
+    const bL = BAR_BETA_L[k];
+    const beta = bL; // L = 1 in normalized coords
+    const sigma = (Math.cosh(bL) - Math.cos(bL)) / (Math.sinh(bL) - Math.sin(bL));
+    sigmas.push(sigma);
+    const shape = new Float64Array(GRID + 1);
+    let maxVal = 0;
+    for (let i = 0; i <= GRID; i++) {
+      const x = i / GRID;
+      const bx = beta * x;
+      shape[i] = Math.cosh(bx) + Math.cos(bx) - sigma * (Math.sinh(bx) + Math.sin(bx));
+      if (Math.abs(shape[i]) > maxVal) maxVal = Math.abs(shape[i]);
+    }
+    // Normalize max|phi| = 1
+    if (maxVal > 0) {
+      for (let i = 0; i <= GRID; i++) shape[i] /= maxVal;
+    }
+    shapes.push(shape);
+  }
+
+  return {
+    type: 'bar',
+    dimension: 1,
+    maxModes,
+    freqRatios,
+    modeLabel(k) { return `(${k + 1})`; },
+    modeShapeAt(k, pos) {
+      // Interpolate from precomputed grid
+      const idx = pos.x * GRID;
+      const i0 = Math.floor(idx);
+      const i1 = Math.min(i0 + 1, GRID);
+      const frac = idx - i0;
+      return shapes[k][i0] * (1 - frac) + shapes[k][i1] * frac;
+    },
+    renderModeShape(ctx, k, w, h) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i <= w; i++) {
+        const idx = (i / w) * GRID;
+        const i0 = Math.floor(idx);
+        const i1 = Math.min(i0 + 1, GRID);
+        const frac = idx - i0;
+        const val = shapes[k][i0] * (1 - frac) + shapes[k][i1] * frac;
+        const y = h / 2 - (h * 0.4) * val;
+        i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+      }
+      ctx.stroke();
+      // Rest line
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+    },
+    renderObject(ctx, w, h) {
+      const y = h / 2;
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(40, y);
+      ctx.lineTo(w - 40, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Free ends (small circles instead of walls)
+      ctx.fillStyle = '#999';
+      ctx.beginPath();
+      ctx.arc(40, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(w - 40, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    },
+    strikeAllPos() { return { x: 0.37 }; }
+  };
+}
+
+function createMembraneModel() {
+  const maxModes = MEMBRANE_MODES.length;
+  const j01 = MEMBRANE_MODES[0].jmn;
+  const freqRatios = MEMBRANE_MODES.map(mode => mode.jmn / j01);
+
+  // Precompute mode shapes on an 80x80 grid
+  const GRID = 80;
+  const shapeGrids = [];
+  for (let k = 0; k < maxModes; k++) {
+    const { m, jmn } = MEMBRANE_MODES[k];
+    const grid = new Float64Array(GRID * GRID);
+    let maxVal = 0;
+    for (let iy = 0; iy < GRID; iy++) {
+      for (let ix = 0; ix < GRID; ix++) {
+        // Map to [-1, 1] x [-1, 1], then to polar
+        const px = (ix + 0.5) / GRID * 2 - 1;
+        const py = (iy + 0.5) / GRID * 2 - 1;
+        const r = Math.sqrt(px * px + py * py);
+        if (r > 1) {
+          grid[iy * GRID + ix] = 0;
+          continue;
+        }
+        const theta = Math.atan2(py, px);
+        const val = besselJ(m, jmn * r) * Math.cos(m * theta);
+        grid[iy * GRID + ix] = val;
+        if (Math.abs(val) > maxVal) maxVal = Math.abs(val);
+      }
+    }
+    // Normalize
+    if (maxVal > 0) {
+      for (let i = 0; i < grid.length; i++) grid[i] /= maxVal;
+    }
+    shapeGrids.push(grid);
+  }
+
+  return {
+    type: 'membrane',
+    dimension: 2,
+    maxModes,
+    freqRatios,
+    modeLabel(k) {
+      const { m, n } = MEMBRANE_MODES[k];
+      return `(${m},${n})`;
+    },
+    modeShapeAt(k, pos) {
+      // pos.x, pos.y in [0, 1], map to [-1, 1]
+      const px = pos.x * 2 - 1;
+      const py = pos.y * 2 - 1;
+      const r = Math.sqrt(px * px + py * py);
+      if (r > 1) return 0;
+      const theta = Math.atan2(py, px);
+      const { m, jmn } = MEMBRANE_MODES[k];
+      return besselJ(m, jmn * r) * Math.cos(m * theta);
+    },
+    getShapeGrid(k) { return { data: shapeGrids[k], size: GRID }; },
+    renderModeShape(ctx, k, w, h) {
+      ctx.clearRect(0, 0, w, h);
+      const grid = shapeGrids[k];
+      const imgData = ctx.createImageData(GRID, GRID);
+      for (let iy = 0; iy < GRID; iy++) {
+        for (let ix = 0; ix < GRID; ix++) {
+          const px = (ix + 0.5) / GRID * 2 - 1;
+          const py = (iy + 0.5) / GRID * 2 - 1;
+          const r = Math.sqrt(px * px + py * py);
+          const idx = (iy * GRID + ix) * 4;
+          if (r > 1) {
+            imgData.data[idx] = 245;
+            imgData.data[idx + 1] = 245;
+            imgData.data[idx + 2] = 245;
+            imgData.data[idx + 3] = 255;
+          } else {
+            const [cr, cg, cb] = divergingColor(grid[iy * GRID + ix]);
+            imgData.data[idx] = cr;
+            imgData.data[idx + 1] = cg;
+            imgData.data[idx + 2] = cb;
+            imgData.data[idx + 3] = 255;
+          }
+        }
+      }
+      // Scale to canvas
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = GRID;
+      tmpCanvas.height = GRID;
+      tmpCanvas.getContext('2d').putImageData(imgData, 0, 0);
+      ctx.drawImage(tmpCanvas, 0, 0, w, h);
+    },
+    renderObject(ctx, w, h) {
+      // Draw circle outline
+      const cx = w / 2, cy = h / 2;
+      const radius = Math.min(w, h) * 0.42;
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      // Light fill
+      ctx.fillStyle = '#fafafa';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    },
+    strikeAllPos() { return { x: 0.62, y: 0.38 }; }, // off-center
+    circleContains(pos) {
+      const px = pos.x * 2 - 1;
+      const py = pos.y * 2 - 1;
+      return (px * px + py * py) <= 1;
+    }
+  };
+}
+
+function createPlateModel(aspectRatio = 1.0) {
+  // Generate (m, n) pairs for m, n = 1..7, sort by frequency, keep up to 48
+  const a = aspectRatio;
+  const b = 1.0;
+  const refVal = (1 / a) ** 2 + (1 / b) ** 2;
+
+  const allModes = [];
+  for (let m = 1; m <= 7; m++) {
+    for (let n = 1; n <= 7; n++) {
+      const ratio = ((m / a) ** 2 + (n / b) ** 2) / refVal;
+      allModes.push({ m, n, ratio });
+    }
+  }
+  allModes.sort((a, b) => a.ratio - b.ratio);
+  if (allModes.length > 48) allModes.length = 48;
+
+  const maxModes = allModes.length;
+  const freqRatios = allModes.map(mode => mode.ratio);
+
+  return {
+    type: 'plate',
+    dimension: 2,
+    maxModes,
+    freqRatios,
+    aspectRatio: a,
+    modes: allModes,
+    modeLabel(k) {
+      return `(${allModes[k].m},${allModes[k].n})`;
+    },
+    modeShapeAt(k, pos) {
+      const { m, n } = allModes[k];
+      return Math.sin(m * Math.PI * pos.x) * Math.sin(n * Math.PI * pos.y);
+    },
+    renderModeShape(ctx, k, w, h) {
+      ctx.clearRect(0, 0, w, h);
+      const { m, n } = allModes[k];
+      const GRID = 40;
+      const imgData = ctx.createImageData(GRID, GRID);
+      for (let iy = 0; iy < GRID; iy++) {
+        for (let ix = 0; ix < GRID; ix++) {
+          const x = (ix + 0.5) / GRID;
+          const y = (iy + 0.5) / GRID;
+          const val = Math.sin(m * Math.PI * x) * Math.sin(n * Math.PI * y);
+          const [cr, cg, cb] = divergingColor(val);
+          const idx = (iy * GRID + ix) * 4;
+          imgData.data[idx] = cr;
+          imgData.data[idx + 1] = cg;
+          imgData.data[idx + 2] = cb;
+          imgData.data[idx + 3] = 255;
+        }
+      }
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = GRID;
+      tmpCanvas.height = GRID;
+      tmpCanvas.getContext('2d').putImageData(imgData, 0, 0);
+      ctx.drawImage(tmpCanvas, 0, 0, w, h);
+    },
+    renderObject(ctx, w, h) {
+      const cx = w / 2, cy = h / 2;
+      const maxDim = Math.min(w, h) * 0.42;
+      let pw, ph;
+      if (a >= 1) {
+        pw = maxDim;
+        ph = maxDim / a;
+      } else {
+        ph = maxDim;
+        pw = maxDim * a;
+      }
+      ctx.fillStyle = '#fafafa';
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(cx - pw, cy - ph, pw * 2, ph * 2);
+      ctx.strokeRect(cx - pw, cy - ph, pw * 2, ph * 2);
+    },
+    strikeAllPos() { return { x: 0.37, y: 0.41 }; }
+  };
+}
+
+function createModel(type, aspectRatio) {
+  switch (type) {
+    case 'string': return createStringModel();
+    case 'bar': return createBarModel();
+    case 'membrane': return createMembraneModel();
+    case 'plate': return createPlateModel(aspectRatio);
+    default: return createStringModel();
+  }
+}
+
+// ============================================================
+// F. Audio Synthesis
+// ============================================================
+
+let audioCtx = null;
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+/**
+ * Synthesize and play a strike.
+ * Returns { activeModes: [{freq, decay, amplitude}], startTime }
+ */
+function synthesizeStrike(model, strikePos, fundamental, alphaR, betaR, numModes, modeEnabled) {
+  const ctx = ensureAudioCtx();
+
+  // Compute modal parameters
+  const activeModes = [];
+  for (let k = 0; k < Math.min(numModes, model.maxModes); k++) {
+    if (!modeEnabled[k]) continue;
+    const freqRatio = model.freqRatios[k];
+    const freq = fundamental * freqRatio;
+    if (freq > 20000) continue; // above audibility
+    const omega = 2 * Math.PI * freq;
+    // Rayleigh damping: decay_k = alpha/2 + beta * omega^2 / 2
+    const decay = alphaR / 2 + betaR * omega * omega / 2;
+    // Strike coupling: amplitude proportional to mode shape at strike point
+    const amplitude = model.modeShapeAt(k, strikePos);
+    if (Math.abs(amplitude) < 1e-6) continue;
+    activeModes.push({ k, freq, decay, amplitude, freqRatio });
+  }
+
+  if (activeModes.length === 0) return null;
+
+  // Find normalization factor
+  // Compute peak of sum at t=0 (all sinusoids start with sin(0)=0,
+  // so we look for max over the first few samples)
+  const buffer = ctx.createBuffer(1, BUFFER_LENGTH, SAMPLE_RATE);
+  const data = buffer.getChannelData(0);
+
+  for (let i = 0; i < BUFFER_LENGTH; i++) {
+    const t = i / SAMPLE_RATE;
+    let sample = 0;
+    for (const mode of activeModes) {
+      sample += mode.amplitude * Math.sin(2 * Math.PI * mode.freq * t) * Math.exp(-mode.decay * t);
+    }
+    data[i] = sample;
+  }
+
+  // Normalize
+  let maxAbs = 0;
+  for (let i = 0; i < BUFFER_LENGTH; i++) {
+    if (Math.abs(data[i]) > maxAbs) maxAbs = Math.abs(data[i]);
+  }
+  if (maxAbs > 0) {
+    const scale = PEAK_AMPLITUDE / maxAbs;
+    for (let i = 0; i < BUFFER_LENGTH; i++) {
+      data[i] *= scale;
+    }
+  }
+
+  // Play
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start();
+
+  return { activeModes, startTime: performance.now() };
+}
+
+// ============================================================
+// G-J. Visualization & Animation
+// ============================================================
+
+const objectCanvas = document.getElementById('objectCanvas');
+const objectCtx = objectCanvas.getContext('2d');
+const energyCanvas = document.getElementById('energyCanvas');
+const energyCtx = energyCanvas.getContext('2d');
+
+// HiDPI support
+function setupCanvas(canvas, ctx, w, h) {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// We'll use CSS-based sizing and read from the element
+function resizeCanvases() {
+  const objW = objectCanvas.parentElement.clientWidth - 24; // padding
+  const objH = state.model.dimension === 2 ? Math.min(objW * 0.6, 400) : 200;
+  setupCanvas(objectCanvas, objectCtx, objW, objH);
+
+  const engW = energyCanvas.parentElement.clientWidth - 24;
+  setupCanvas(energyCanvas, energyCtx, engW, 200);
+}
+
+/** Draw the static object (rest state) */
+function drawStaticObject() {
+  const w = objectCanvas.width / (window.devicePixelRatio || 1);
+  const h = objectCanvas.height / (window.devicePixelRatio || 1);
+  objectCtx.clearRect(0, 0, w, h);
+  state.model.renderObject(objectCtx, w, h);
+}
+
+/** Draw animated object after a strike */
+function drawAnimatedObject(elapsed) {
+  const w = objectCanvas.width / (window.devicePixelRatio || 1);
+  const h = objectCanvas.height / (window.devicePixelRatio || 1);
+  objectCtx.clearRect(0, 0, w, h);
+
+  const { activeModes } = state.animState;
+  if (!activeModes || activeModes.length === 0) {
+    state.model.renderObject(objectCtx, w, h);
+    return;
+  }
+
+  if (state.model.dimension === 1) {
+    // Draw rest line
+    state.model.renderObject(objectCtx, w, h);
+
+    // Compute animated displacement along the object
+    const padL = 40, padR = 40;
+    const objW = w - padL - padR;
+    const cy = h / 2;
+    const maxDisp = h * 0.35;
+
+    objectCtx.strokeStyle = '#2563eb';
+    objectCtx.lineWidth = 2;
+    objectCtx.beginPath();
+
+    const STEPS = 200;
+    for (let i = 0; i <= STEPS; i++) {
+      const x = i / STEPS; // normalized position
+      let disp = 0;
+      for (const mode of activeModes) {
+        // Display frequency: scale audio freq down to visible range (2-5 Hz)
+        const displayFreq = 2.0 * mode.freqRatio;
+        const cappedFreq = Math.min(displayFreq, 5.0);
+        const amp = mode.amplitude * Math.exp(-mode.decay * elapsed);
+        disp += amp * Math.sin(2 * Math.PI * cappedFreq * elapsed) *
+                state.model.modeShapeAt(mode.k, { x });
+      }
+      // Normalize displacement for display
+      const px = padL + x * objW;
+      const py = cy - disp * maxDisp;
+      i === 0 ? objectCtx.moveTo(px, py) : objectCtx.lineTo(px, py);
+    }
+    objectCtx.stroke();
+  } else {
+    // 2D animated display
+    const cx = w / 2, cy = h / 2;
+    const GRID = 60; // render grid for animation
+    let radius, pw, ph;
+
+    if (state.model.type === 'membrane') {
+      radius = Math.min(w, h) * 0.42;
+    } else {
+      const a = state.model.aspectRatio || 1;
+      const maxDim = Math.min(w, h) * 0.42;
+      if (a >= 1) { pw = maxDim; ph = maxDim / a; }
+      else { ph = maxDim; pw = maxDim * a; }
+    }
+
+    const imgData = objectCtx.createImageData(GRID, GRID);
+    let maxDisp = 0;
+
+    // First pass: compute displacement field
+    const dispField = new Float64Array(GRID * GRID);
+    for (let iy = 0; iy < GRID; iy++) {
+      for (let ix = 0; ix < GRID; ix++) {
+        const nx = (ix + 0.5) / GRID;
+        const ny = (iy + 0.5) / GRID;
+
+        if (state.model.type === 'membrane') {
+          const px = nx * 2 - 1;
+          const py = ny * 2 - 1;
+          if (px * px + py * py > 1) {
+            dispField[iy * GRID + ix] = NaN;
+            continue;
+          }
+        }
+
+        let disp = 0;
+        for (const mode of activeModes) {
+          const displayFreq = Math.min(2.0 * mode.freqRatio, 5.0);
+          const amp = mode.amplitude * Math.exp(-mode.decay * elapsed);
+          disp += amp * Math.sin(2 * Math.PI * displayFreq * elapsed) *
+                  state.model.modeShapeAt(mode.k, { x: nx, y: ny });
+        }
+        dispField[iy * GRID + ix] = disp;
+        if (Math.abs(disp) > maxDisp) maxDisp = Math.abs(disp);
+      }
+    }
+
+    // Second pass: colormap
+    if (maxDisp < 1e-10) maxDisp = 1;
+    for (let iy = 0; iy < GRID; iy++) {
+      for (let ix = 0; ix < GRID; ix++) {
+        const idx = (iy * GRID + ix) * 4;
+        const val = dispField[iy * GRID + ix];
+        if (isNaN(val)) {
+          imgData.data[idx] = 245;
+          imgData.data[idx + 1] = 245;
+          imgData.data[idx + 2] = 245;
+          imgData.data[idx + 3] = 255;
+        } else {
+          const [cr, cg, cb] = divergingColor(val / maxDisp);
+          imgData.data[idx] = cr;
+          imgData.data[idx + 1] = cg;
+          imgData.data[idx + 2] = cb;
+          imgData.data[idx + 3] = 255;
+        }
+      }
+    }
+
+    // Draw to temp canvas, then scale to main canvas
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = GRID;
+    tmpCanvas.height = GRID;
+    tmpCanvas.getContext('2d').putImageData(imgData, 0, 0);
+
+    if (state.model.type === 'membrane') {
+      // Draw scaled into the circle area
+      const x0 = cx - radius;
+      const y0 = cy - radius;
+      objectCtx.drawImage(tmpCanvas, x0, y0, radius * 2, radius * 2);
+      // Circle border
+      objectCtx.strokeStyle = '#999';
+      objectCtx.lineWidth = 1.5;
+      objectCtx.beginPath();
+      objectCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+      objectCtx.stroke();
+    } else {
+      // Plate rectangle
+      objectCtx.drawImage(tmpCanvas, cx - pw, cy - ph, pw * 2, ph * 2);
+      objectCtx.strokeStyle = '#999';
+      objectCtx.lineWidth = 1.5;
+      objectCtx.strokeRect(cx - pw, cy - ph, pw * 2, ph * 2);
+    }
+  }
+
+  // Strike indicator
+  if (state.animState.strikePos && elapsed < 0.5) {
+    const alpha = 1 - elapsed / 0.5;
+    const pos = state.animState.strikePos;
+    let sx, sy;
+
+    if (state.model.dimension === 1) {
+      sx = 40 + pos.x * (w - 80);
+      sy = h / 2;
+    } else if (state.model.type === 'membrane') {
+      const cx = w / 2, cy = h / 2;
+      const radius = Math.min(w, h) * 0.42;
+      sx = cx + (pos.x * 2 - 1) * radius;
+      sy = cy + (pos.y * 2 - 1) * radius;
+    } else {
+      const cx = w / 2, cy = h / 2;
+      const a = state.model.aspectRatio || 1;
+      const maxDim = Math.min(w, h) * 0.42;
+      let lpw, lph;
+      if (a >= 1) { lpw = maxDim; lph = maxDim / a; }
+      else { lph = maxDim; lpw = maxDim * a; }
+      sx = cx - lpw + pos.x * lpw * 2;
+      sy = cy - lph + pos.y * lph * 2;
+    }
+
+    objectCtx.fillStyle = `rgba(37, 99, 235, ${alpha})`;
+    objectCtx.beginPath();
+    objectCtx.arc(sx, sy, 6 + (1 - alpha) * 10, 0, Math.PI * 2);
+    objectCtx.fill();
+  }
+}
+
+/**
+ * Compute the frequency axis layout for the current model.
+ * Returns { freqs[], maxFreq, labelW, barMaxW, padTop, padBot, barH, plotH }
+ */
+function getEnergyLayout(w, h) {
+  const model = state.model;
+  const numModes = Math.min(state.numModes, model.maxModes);
+  const labelW = 55;
+  const barMaxW = w - labelW - 10;
+  const padTop = 10;
+  const padBot = 10;
+  const barH = 8;
+  const plotH = h - padTop - padBot;
+
+  // Collect all mode frequencies for the current model/fundamental
+  const freqs = [];
+  for (let k = 0; k < numModes; k++) {
+    const freq = state.fundamental * model.freqRatios[k];
+    if (freq <= 20000) freqs.push({ k, freq });
+  }
+  const maxFreq = freqs.length > 0
+    ? Math.max(...freqs.map(f => f.freq)) * 1.08
+    : state.fundamental * 2;
+
+  return { freqs, maxFreq, labelW, barMaxW, padTop, padBot, barH, plotH };
+}
+
+/** Draw the static frequency spectrum lines (always visible, no excitation needed) */
+function drawStaticEnergyBars() {
+  const w = energyCanvas.width / (window.devicePixelRatio || 1);
+  const h = energyCanvas.height / (window.devicePixelRatio || 1);
+  energyCtx.clearRect(0, 0, w, h);
+
+  const { freqs, maxFreq, labelW, padTop, barH, plotH } = getEnergyLayout(w, h);
+  if (freqs.length === 0) return;
+
+  for (let i = 0; i < freqs.length; i++) {
+    const { freq } = freqs[i];
+    const frac = freq / maxFreq;
+    const yCenter = padTop + plotH * (1 - frac);
+
+    // Faint horizontal line across the full width
+    energyCtx.strokeStyle = '#e0e0e0';
+    energyCtx.lineWidth = 0.5;
+    energyCtx.beginPath();
+    energyCtx.moveTo(labelW, yCenter);
+    energyCtx.lineTo(w, yCenter);
+    energyCtx.stroke();
+
+    // Frequency label
+    energyCtx.fillStyle = '#bbb';
+    energyCtx.font = '9px system-ui';
+    energyCtx.textAlign = 'right';
+    energyCtx.fillText(`${Math.round(freq)}`, labelW - 4, yCenter + 3);
+  }
+
+  // Axis label
+  energyCtx.fillStyle = '#ccc';
+  energyCtx.font = '9px system-ui';
+  energyCtx.textAlign = 'right';
+  energyCtx.fillText('Hz', labelW - 4, h - 1);
+}
+
+/** Draw energy bars with animated excitation — frequency-proportional, low freq at bottom */
+function drawEnergyBars(elapsed) {
+  const w = energyCanvas.width / (window.devicePixelRatio || 1);
+  const h = energyCanvas.height / (window.devicePixelRatio || 1);
+  energyCtx.clearRect(0, 0, w, h);
+
+  const { freqs, maxFreq, labelW, barMaxW, padTop, barH, plotH } = getEnergyLayout(w, h);
+  if (freqs.length === 0) return;
+
+  const activeModes = state.animState ? state.animState.activeModes : [];
+  const maxAmp = activeModes.length > 0
+    ? Math.max(...activeModes.map(m => Math.abs(m.amplitude)))
+    : 1;
+
+  // Build a lookup from mode index k to active mode data
+  const activeByK = {};
+  for (const mode of activeModes) {
+    activeByK[mode.k] = mode;
+  }
+
+  for (let i = 0; i < freqs.length; i++) {
+    const { k, freq } = freqs[i];
+    const frac = freq / maxFreq;
+    const yCenter = padTop + plotH * (1 - frac);
+    const y = yCenter - barH / 2;
+
+    // Faint horizontal line (always visible)
+    energyCtx.strokeStyle = '#e0e0e0';
+    energyCtx.lineWidth = 0.5;
+    energyCtx.beginPath();
+    energyCtx.moveTo(labelW, yCenter);
+    energyCtx.lineTo(w, yCenter);
+    energyCtx.stroke();
+
+    // Animated excitation bar (only if this mode is active)
+    const active = activeByK[k];
+    if (active && elapsed !== undefined) {
+      const currentAmp = Math.abs(active.amplitude) * Math.exp(-active.decay * elapsed);
+      const normAmp = currentAmp / maxAmp;
+      const barW = normAmp * barMaxW;
+
+      const t = i / Math.max(1, freqs.length - 1);
+      energyCtx.fillStyle = freqColor(t);
+      energyCtx.fillRect(labelW, y, barW, barH);
+    }
+
+    // Frequency label
+    const isExcited = !!active;
+    energyCtx.fillStyle = isExcited ? '#555' : '#bbb';
+    energyCtx.font = '9px system-ui';
+    energyCtx.textAlign = 'right';
+    energyCtx.fillText(`${Math.round(freq)}`, labelW - 4, yCenter + 3);
+  }
+
+  // Axis label
+  energyCtx.fillStyle = '#ccc';
+  energyCtx.font = '9px system-ui';
+  energyCtx.textAlign = 'right';
+  energyCtx.fillText('Hz', labelW - 4, h - 1);
+}
+
+// ============================================================
+// H. Mode Gallery
+// ============================================================
+
+const modeGallery = document.getElementById('modeGallery');
+
+function buildModeGallery() {
+  modeGallery.innerHTML = '';
+  const model = state.model;
+  const numModes = Math.min(state.numModes, model.maxModes);
+
+  // Ensure modeEnabled array is big enough
+  while (state.modeEnabled.length < model.maxModes) {
+    state.modeEnabled.push(true);
+  }
+
+  // Auto-disable modes above 20 kHz
+  for (let k = 0; k < numModes; k++) {
+    const freq = state.fundamental * model.freqRatios[k];
+    if (freq > 20000) {
+      state.modeEnabled[k] = false;
+    }
+  }
+
+  for (let k = 0; k < numModes; k++) {
+    const thumb = document.createElement('div');
+    thumb.className = 'mode-thumb' + (state.modeEnabled[k] ? ' active' : ' disabled');
+    thumb.dataset.modeIndex = k;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 40;
+    const ctx = canvas.getContext('2d');
+    model.renderModeShape(ctx, k, 64, 40);
+    thumb.appendChild(canvas);
+
+    const label = document.createElement('div');
+    label.className = 'mode-label';
+    const freq = (state.fundamental * model.freqRatios[k]).toFixed(0);
+    label.textContent = `${model.modeLabel(k)} ${freq}Hz`;
+    thumb.appendChild(label);
+
+    thumb.addEventListener('click', () => {
+      const idx = parseInt(thumb.dataset.modeIndex);
+      state.modeEnabled[idx] = !state.modeEnabled[idx];
+      thumb.classList.toggle('active', state.modeEnabled[idx]);
+      thumb.classList.toggle('disabled', !state.modeEnabled[idx]);
+    });
+
+    modeGallery.appendChild(thumb);
+  }
+}
+
+function updateGalleryFreqLabels() {
+  const thumbs = modeGallery.querySelectorAll('.mode-thumb');
+  thumbs.forEach(thumb => {
+    const k = parseInt(thumb.dataset.modeIndex);
+    const label = thumb.querySelector('.mode-label');
+    if (label && k < state.model.freqRatios.length) {
+      const freq = (state.fundamental * state.model.freqRatios[k]).toFixed(0);
+      label.textContent = `${state.model.modeLabel(k)} ${freq}Hz`;
+      // Auto-disable modes above 20 kHz, auto-enable those that come back in range
+      const isAbove = state.fundamental * state.model.freqRatios[k] > 20000;
+      if (isAbove && state.modeEnabled[k]) {
+        state.modeEnabled[k] = false;
+        thumb.classList.remove('active');
+        thumb.classList.add('disabled');
+      } else if (!isAbove && !state.modeEnabled[k]) {
+        state.modeEnabled[k] = true;
+        thumb.classList.add('active');
+        thumb.classList.remove('disabled');
+      }
+    }
+  });
+}
+
+function highlightExcitedModes() {
+  const thumbs = modeGallery.querySelectorAll('.mode-thumb');
+  thumbs.forEach(thumb => thumb.classList.remove('excited'));
+  if (!state.animState || !state.animState.activeModes) return;
+  for (const mode of state.animState.activeModes) {
+    const thumb = modeGallery.querySelector(`[data-mode-index="${mode.k}"]`);
+    if (thumb) thumb.classList.add('excited');
+  }
+}
+
+// ============================================================
+// K. UI / Events / State
+// ============================================================
+
+// Global state
+const state = {
+  objectType: 'string',
+  model: null,
+  fundamental: 440,
+  alphaR: 1.0,
+  betaR: 0.000002,
+  numModes: 12,
+  aspectRatio: 1.0,
+  modeEnabled: [],
+  animState: null,
+  animFrameId: null,
+  activeMaterial: null,
+};
+
+// Nonlinear beta slider mapping: slider 0-1000 -> beta ~1e-7 to ~1e-2
+function betaFromSlider(val) {
+  // Map 0..1000 to exponent -7..-2
+  const exp = -7 + (val / 1000) * 5;
+  return Math.pow(10, exp);
+}
+function sliderFromBeta(beta) {
+  if (beta <= 0) return 0;
+  const exp = Math.log10(beta);
+  return Math.round(((exp + 7) / 5) * 1000);
+}
+
+// Alpha slider: 0..500 -> 0..500 linear
+function alphaFromSlider(val) { return val / 10; }
+function sliderFromAlpha(alpha) { return Math.round(alpha * 10); }
+
+// Object type descriptions
+const OBJECT_TYPE_HINTS = {
+  string: '1D wave equation, fixed-fixed boundary conditions',
+  bar: '1D beam equation (4th order), free-free boundary conditions',
+  membrane: '2D wave equation on circular domain, fixed edge',
+  plate: '2D biharmonic equation on rectangle, simply supported edges',
+};
+
+function updateObjectTypeHint() {
+  document.getElementById('objectTypeHint').textContent =
+    OBJECT_TYPE_HINTS[state.objectType] || '';
+}
+
+// DOM elements
+const fundSlider = document.getElementById('fundSlider');
+const fundVal = document.getElementById('fundVal');
+const alphaSlider = document.getElementById('alphaSlider');
+const alphaVal = document.getElementById('alphaVal');
+const betaSlider = document.getElementById('betaSlider');
+const betaVal = document.getElementById('betaVal');
+const numModesSlider = document.getElementById('numModesSlider');
+const numModesVal = document.getElementById('numModesVal');
+const aspectSlider = document.getElementById('aspectSlider');
+const aspectVal = document.getElementById('aspectVal');
+const aspectSection = document.getElementById('aspectSection');
+
+function updateSliderDisplays() {
+  fundVal.textContent = state.fundamental + ' Hz';
+  alphaVal.textContent = state.alphaR.toFixed(1);
+  betaVal.textContent = state.betaR.toExponential(1);
+  numModesVal.textContent = state.numModes;
+  aspectVal.textContent = state.aspectRatio.toFixed(2);
+}
+
+// Object type buttons
+document.getElementById('objectTypeBar').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const type = btn.dataset.type;
+  if (type === state.objectType) return;
+
+  document.querySelectorAll('#objectTypeBar button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  state.objectType = type;
+  state.modeEnabled = [];
+  state.animState = null;
+  aspectSection.style.display = type === 'plate' ? '' : 'none';
+  state.model = createModel(type, state.aspectRatio);
+  numModesSlider.max = state.model.maxModes;
+  state.numModes = Math.min(state.numModes, parseInt(numModesSlider.max));
+  numModesSlider.value = state.numModes;
+  updateObjectTypeHint();
+  resizeCanvases();
+  drawStaticObject();
+  buildModeGallery();
+  drawStaticEnergyBars();
+});
+
+// Material preset buttons
+document.getElementById('materialGrid').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const matKey = btn.dataset.mat;
+  const mat = MATERIALS[matKey];
+  if (!mat) return;
+
+  document.querySelectorAll('#materialGrid button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.activeMaterial = matKey;
+
+  state.fundamental = mat.fund;
+  state.alphaR = mat.alpha;
+  state.betaR = mat.beta;
+  fundSlider.value = mat.fund;
+  alphaSlider.value = sliderFromAlpha(mat.alpha);
+  betaSlider.value = sliderFromBeta(mat.beta);
+  updateSliderDisplays();
+  updateGalleryFreqLabels();
+  drawStaticEnergyBars();
+});
+
+// Sliders
+fundSlider.addEventListener('input', () => {
+  state.fundamental = parseInt(fundSlider.value);
+  clearActiveMaterial();
+  updateSliderDisplays();
+  updateGalleryFreqLabels();
+  drawStaticEnergyBars();
+});
+alphaSlider.addEventListener('input', () => {
+  state.alphaR = alphaFromSlider(parseInt(alphaSlider.value));
+  clearActiveMaterial();
+  updateSliderDisplays();
+});
+betaSlider.addEventListener('input', () => {
+  state.betaR = betaFromSlider(parseInt(betaSlider.value));
+  clearActiveMaterial();
+  updateSliderDisplays();
+});
+numModesSlider.addEventListener('input', () => {
+  state.numModes = parseInt(numModesSlider.value);
+  updateSliderDisplays();
+  buildModeGallery();
+  drawStaticEnergyBars();
+});
+aspectSlider.addEventListener('input', () => {
+  state.aspectRatio = parseInt(aspectSlider.value) / 100;
+  updateSliderDisplays();
+  state.model = createPlateModel(state.aspectRatio);
+  state.modeEnabled = [];
+  resizeCanvases();
+  drawStaticObject();
+  buildModeGallery();
+});
+
+function clearActiveMaterial() {
+  state.activeMaterial = null;
+  document.querySelectorAll('#materialGrid button').forEach(b => b.classList.remove('active'));
+}
+
+
+
+// Strike interaction on object canvas
+function handleStrike(clientX, clientY) {
+  const rect = objectCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+  const mx = clientX - rect.left;
+  const my = clientY - rect.top;
+
+  let strikePos;
+
+  if (state.model.dimension === 1) {
+    const padL = 40 * (w / (objectCanvas.width / (window.devicePixelRatio || 1)));
+    const padR = padL;
+    const objW = w - padL - padR;
+    const x = (mx - padL) / objW;
+    if (x < 0 || x > 1) return;
+    strikePos = { x };
+  } else if (state.model.type === 'membrane') {
+    const cx = w / 2, cy = h / 2;
+    const radius = Math.min(w, h) * 0.42;
+    const dx = mx - cx, dy = my - cy;
+    if (dx * dx + dy * dy > radius * radius) return;
+    // Map to [0,1] x [0,1] where center is (0.5, 0.5)
+    strikePos = { x: (dx / radius + 1) / 2, y: (dy / radius + 1) / 2 };
+  } else {
+    // Plate
+    const cx = w / 2, cy = h / 2;
+    const a = state.model.aspectRatio || 1;
+    const maxDim = Math.min(w, h) * 0.42;
+    let pw, ph;
+    if (a >= 1) { pw = maxDim; ph = maxDim / a; }
+    else { ph = maxDim; pw = maxDim * a; }
+    const lx = (mx - cx + pw) / (pw * 2);
+    const ly = (my - cy + ph) / (ph * 2);
+    if (lx < 0 || lx > 1 || ly < 0 || ly > 1) return;
+    strikePos = { x: lx, y: ly };
+  }
+
+  performStrike(strikePos);
+}
+
+function performStrike(strikePos) {
+  const result = synthesizeStrike(
+    state.model, strikePos,
+    state.fundamental, state.alphaR, state.betaR,
+    state.numModes, state.modeEnabled
+  );
+  if (!result) return;
+
+  state.animState = { ...result, strikePos };
+  highlightExcitedModes();
+  startAnimation();
+}
+
+objectCanvas.addEventListener('click', e => handleStrike(e.clientX, e.clientY));
+objectCanvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  handleStrike(touch.clientX, touch.clientY);
+}, { passive: false });
+
+// Strike All Modes button
+document.getElementById('strikeAllBtn').addEventListener('click', () => {
+  const pos = state.model.strikeAllPos();
+  performStrike(pos);
+});
+
+// ============================================================
+// J. Animation Loop
+// ============================================================
+
+function startAnimation() {
+  if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
+
+  function tick() {
+    if (!state.animState) return;
+    const elapsed = (performance.now() - state.animState.startTime) / 1000;
+    if (elapsed > BUFFER_DURATION + 0.5) {
+      state.animState = null;
+      drawStaticObject();
+      drawStaticEnergyBars();
+      // Remove excited highlights
+      modeGallery.querySelectorAll('.mode-thumb').forEach(t => t.classList.remove('excited'));
+      return;
+    }
+    drawAnimatedObject(elapsed);
+    drawEnergyBars(elapsed);
+    state.animFrameId = requestAnimationFrame(tick);
+  }
+  state.animFrameId = requestAnimationFrame(tick);
+}
+
+// ============================================================
+// L. Initialization
+// ============================================================
+
+function init() {
+  state.model = createModel('string', 1.0);
+  state.modeEnabled = new Array(state.model.maxModes).fill(true);
+
+  // Set initial slider values from state
+  fundSlider.value = state.fundamental;
+  alphaSlider.value = sliderFromAlpha(state.alphaR);
+  betaSlider.value = sliderFromBeta(state.betaR);
+  numModesSlider.value = state.numModes;
+  aspectSlider.value = Math.round(state.aspectRatio * 100);
+  updateSliderDisplays();
+
+  resizeCanvases();
+  drawStaticObject();
+  buildModeGallery();
+  drawStaticEnergyBars();
+
+  // Handle resize
+  window.addEventListener('resize', () => {
+    resizeCanvases();
+    if (state.animState) {
+      // Redraw current frame
+    } else {
+      drawStaticObject();
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
