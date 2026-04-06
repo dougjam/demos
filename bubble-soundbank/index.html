@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bubble Sound Bank</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 1.5rem 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 0.5rem; }
+.nav-link { font-size: 0.85rem; margin-bottom: 1.25rem; }
+.nav-link a { color: #2563eb; text-decoration: none; }
+.nav-link a:hover { text-decoration: underline; }
+
+.card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Spectrogram */
+.spectrogram-container { padding: 0; overflow: hidden; position: relative; }
+.spectrogram-container canvas {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+#spectrogramCanvas { background: #0a0a1e; }
+#spectrogramLabels {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+}
+
+/* Preset bar */
+.seg-bar {
+  display: flex;
+  gap: 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+.seg-bar button {
+  flex: 1;
+  padding: 0.45rem 0.25rem;
+  border: none;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-right: 1px solid #ddd;
+  transition: background 0.1s, color 0.1s;
+}
+.seg-bar button:last-child { border-right: none; }
+.seg-bar button:hover { background: #f0f4ff; }
+.seg-bar button.active { background: #2563eb; color: #fff; }
+
+/* Slider groups */
+.ctrl-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.slider-row:last-child { margin-bottom: 0; }
+.slider-row label {
+  font-size: 0.82rem;
+  min-width: 120px;
+  flex-shrink: 0;
+  color: #333;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+.slider-val {
+  font-size: 0.78rem;
+  min-width: 62px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #555;
+}
+
+/* Buttons */
+.btn-row { text-align: center; margin: 1rem 0; }
+.play-btn {
+  padding: 0.55rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 8.5em;
+  transition: background 0.12s;
+}
+.play-btn:hover { background: #1d4ed8; }
+
+/* About / footer */
+details {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+details .info-content {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: #333;
+}
+details .info-content p { margin-bottom: 0.5rem; }
+details .info-content h4 { margin: 0.75rem 0 0.35rem; font-size: 0.85rem; }
+details .info-content ol { padding-left: 1.2rem; }
+details .info-content li { margin-bottom: 0.35rem; }
+details .info-content a { color: #2563eb; }
+footer {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #999;
+  margin-top: 0.5rem;
+}
+footer a { color: #999; }
+
+@media (max-width: 600px) {
+  .slider-row label { min-width: 90px; font-size: 0.78rem; }
+  .slider-val { min-width: 50px; font-size: 0.72rem; }
+  .seg-bar button { font-size: 0.7rem; padding: 0.35rem 0.15rem; }
+}
+</style>
+</head>
+<body>
+
+<h1>Bubble Sound Bank</h1>
+<p class="subtitle">Spectrally shapeable liquid sound explorer. A JavaScript remix of Kees van den Doel's Liquid Simulator [van den Doel 2005].</p>
+<p class="nav-link"><a href="../index.html">&larr; All demos</a></p>
+
+<div class="card spectrogram-container">
+  <canvas id="spectrogramCanvas"></canvas>
+  <canvas id="spectrogramLabels"></canvas>
+</div>
+
+<div class="seg-bar" id="presetBar">
+  <button data-preset="dripping">Dripping</button>
+  <button data-preset="lightRain">Light Rain</button>
+  <button data-preset="stream">Stream</button>
+  <button data-preset="waterfall">Waterfall</button>
+  <button data-preset="strawBubbles">Straw Bubbles</button>
+</div>
+
+<div class="card">
+  <div class="ctrl-section-title">Density</div>
+  <div class="slider-row">
+    <label>Rate</label>
+    <input type="range" id="rateSlider" min="0" max="1000" value="600" step="1">
+    <span class="slider-val" id="rateVal">1000</span>
+  </div>
+  <div class="slider-row">
+    <label>Size Dist. (&gamma;)</label>
+    <input type="range" id="gammaSlider" min="0" max="800" value="200" step="1">
+    <span class="slider-val" id="gammaVal">2.0</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="ctrl-section-title">Spectrum</div>
+  <div class="slider-row">
+    <label>Brightness (&alpha;)</label>
+    <input type="range" id="alphaSlider" min="0" max="400" value="100" step="1">
+    <span class="slider-val" id="alphaVal">1.0</span>
+  </div>
+  <div class="slider-row">
+    <label>Min Radius</label>
+    <input type="range" id="rminSlider" min="0" max="1000" value="180" step="1">
+    <span class="slider-val" id="rminVal">0.2 mm</span>
+  </div>
+  <div class="slider-row">
+    <label>Max Radius</label>
+    <input type="range" id="rmaxSlider" min="0" max="1000" value="769" step="1">
+    <span class="slider-val" id="rmaxVal">50.0 mm</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="ctrl-section-title">Chirp</div>
+  <div class="slider-row">
+    <label>Rise Factor (&xi;)</label>
+    <input type="range" id="xiSlider" min="0" max="100" value="0" step="1">
+    <span class="slider-val" id="xiVal">0.00</span>
+  </div>
+  <div class="slider-row">
+    <label>Rise Probability</label>
+    <input type="range" id="riseCutoffSlider" min="0" max="100" value="0" step="1">
+    <span class="slider-val" id="riseCutoffVal">0.00</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="ctrl-section-title">Output</div>
+  <div class="slider-row">
+    <label>Master Volume</label>
+    <input type="range" id="gainSlider" min="0" max="100" value="50" step="1">
+    <span class="slider-val" id="gainVal">0.50</span>
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="play-btn" id="startStopBtn">Start</button>
+</div>
+
+<details>
+  <summary>About &amp; References</summary>
+  <div class="info-content">
+    <p>Nearly all liquid sounds (dripping, streaming, rain, waterfalls, pouring) originate from the acoustic radiation of air bubbles in water [1]. A single bubble produces a damped sinusoidal impulse response [1, Eq.&nbsp;1]:</p>
+    <p style="text-align:center; font-style:italic;">&iota;(t) = a&thinsp;sin(2&pi;ft)&thinsp;e<sup>&minus;dt</sup></p>
+    <p>where f is the resonant frequency, d the damping factor, and a the amplitude. The frequency is set by the bubble radius r via the <strong>Minnaert relation</strong>, f&nbsp;&asymp;&nbsp;3/r (r in meters, f in Hz) [1,&nbsp;Eq.&nbsp;2; 4]. The damping factor depends on viscous, radiative, and thermal losses [1, Eq.&nbsp;3]:</p>
+    <p style="text-align:center; font-style:italic;">d = 0.13/r + 0.0072&thinsp;r<sup>&minus;3/2</sup></p>
+    <p>This nonlinear relationship means small high-frequency bubbles decay in a few milliseconds while large low-frequency ones ring for tens of milliseconds, giving liquid sounds their characteristic shimmery texture. Complex liquid sounds emerge from the superposition of many bubble events drawn stochastically from a distribution of sizes.</p>
+    <p>This demo provides a bank of N&nbsp;=&nbsp;50 independently triggered damped-sinusoidal bubble voices with log-spaced radii. Shape the spectral character by adjusting how bubble events are distributed and weighted across the bank.</p>
+    <p>Inspired by the "Complex Liquid Sound Simulator" Java applet by Kees van den Doel (University of British Columbia). Remixed from scratch in JavaScript/Web Audio for CS 448Z, Spring 2026.</p>
+
+    <h4>Slider Parameters</h4>
+    <p><strong>Rate</strong> (bubbles/sec): Total bubble creation rate &Lambda;. Rates up to about 1,000/sec range from dripping to intimate streaming or light rain. At rates up to 10,000/sec, the sound is quite dense but individual droplets are still audible. At rates approaching 100,000/sec, individual events merge into blended soundscapes such as heavy rain or waterfalls [1, Sec.&nbsp;6].</p>
+    <p><strong>Size Distribution (&gamma;)</strong>: Controls the relative creation rates of different bubble sizes via &lambda;&#x0303;<sub>k</sub>&nbsp;=&nbsp;1/r<sup>&gamma;</sup> [1, Eq.&nbsp;8]. Values from &gamma;&nbsp;=&nbsp;0 to &gamma;&nbsp;&asymp;&nbsp;3 produce sounds of streaming water; values above &gamma;&nbsp;&asymp;&nbsp;5 sound like rain [1, Sec.&nbsp;6].</p>
+    <p><strong>Brightness (&alpha;, lower = brighter)</strong>: Controls how excitation energy is distributed across bubble sizes via amplitude a<sub>k</sub>&nbsp;=&nbsp;D&middot;r<sub>k</sub><sup>&alpha;</sup> [1, Eq.&nbsp;6]. The full model includes a depth factor D&nbsp;=&nbsp;rnd<sup>&beta;</sup> [1, Eq.&nbsp;7] with &beta;&nbsp;&asymp;&nbsp;10 modeling attenuation of deeply submerged bubbles; this demo simplifies by treating all bubbles at equal depth (D&nbsp;=&nbsp;1). Assuming uniform inward fluid velocity at bubble creation, &alpha;&nbsp;&asymp;&nbsp;1.5 is physically predicted [1, Eq.&nbsp;4]. Smaller &alpha; brightens the sound by giving small (high-frequency) bubbles relatively more energy, creating the illusion of proximity. Larger &alpha; darkens the sound by favoring large (low-frequency) bubbles, creating a sense of distance [1, Sec.&nbsp;6].</p>
+    <p><strong>Min/Max Radius</strong>: The range of bubble radii in the population. Removing the smallest bubbles (~0.2&nbsp;mm) always degrades the liquid character of streaming and dripping sounds [1, Sec.&nbsp;6]. Removing large bubbles and keeping only small radii with high &xi; creates nozzle or straw-blowing sounds. Extending up to 5&nbsp;cm creates the effect of a waterfall or large river.</p>
+    <p><strong>Rise Factor (&xi;)</strong>: Controls the pitch rise of bubbles formed close to the water surface. As a bubble rises, the effective mass of the surrounding water shell decreases, which raises the bubble's resonant frequency [1, Sec.&nbsp;3]. The frequency rises as f(t)&nbsp;=&nbsp;f<sub>0</sub>(1&nbsp;+&nbsp;&sigma;t) with &sigma;&nbsp;=&nbsp;&xi;&middot;d [1, Sec.&nbsp;4]. For water drops, &xi;&nbsp;&asymp;&nbsp;0.1 gives a realistic chirp. Higher values create faster pitch sweeps resembling air blown into water through a straw [1, Fig.&nbsp;5], for which the paper reports &xi;&nbsp;&asymp;&nbsp;10.</p>
+    <p><strong>Rise Probability</strong>: The fraction of bubble events that exhibit a rising pitch. In the paper [1, Sec.&nbsp;5], this is modeled as a depth-factor threshold; here it is simplified to a probability. Higher values mean more bubbles chirp. A value near 0.9 improves realism for sparse sounds such as dripping. Setting rise probability to 1.0 with non-zero &xi; makes all bubbles rise, creating the effect of air injected violently into water [1, Sec.&nbsp;6].</p>
+    <p><strong>Master Volume</strong>: Output level.</p>
+
+    <h4>References</h4>
+    <ol>
+      <li><strong>Van den Doel, K.</strong> (2005). "Physically Based Models for Liquid Sounds." <em>ACM Trans. Applied Perception</em>, 2(4), 534&ndash;546.
+        <a href="https://doi.org/10.1145/1101530.1101554" target="_blank">doi</a> &middot;
+        <a href="https://persianney.com/kvdoelcsubc/publications/prep04.pdf" target="_blank">preprint</a></li>
+      <li><strong>Original Java applet</strong> (no longer runnable):
+        <a href="https://persianney.com/kvdoelcsubc/icad04/simulator/" target="_blank">demo page</a> &middot;
+        <a href="https://persianney.com/kvdoelcsubc/icad04/" target="_blank">project page</a></li>
+      <li><strong>JASS toolkit</strong> by van den Doel:
+        <a href="https://persianney.com/kvdoelcsubc/jass/" target="_blank">jass</a></li>
+      <li><strong>Minnaert, M.</strong> (1933). "On Musical Air-Bubbles and the Sounds of Running Water." <em>Phil. Mag.</em>, 16(104), 235&ndash;248.</li>
+    </ol>
+  </div>
+</details>
+
+<footer>
+  AI-assisted demo by Doug James using Claude Code. Provided "as is" for educational purposes.
+  <a href="https://github.com/dougjam/demos/blob/master/DEMO_DISCLAIMER.md">Full disclaimer</a>.
+</footer>
+
+<script>
+// ============================================================
+// A. Physical Constants & Voice Computation
+// ============================================================
+
+const GAMMA_AIR = 1.4;
+const P0 = 101325;
+const RHO = 998;
+const N_VOICES = 50;
+
+function minnaertFreq(r) {
+  return (1 / (2 * Math.PI * r)) * Math.sqrt(3 * GAMMA_AIR * P0 / RHO);
+}
+
+// Paper Eq. 3: d = 0.13/r + 0.0072 * r^{-3/2}, valid for r > 0.15 mm.
+// We use Eq. 3 directly (in terms of r) rather than the derived Eq. 5
+// (in terms of f), because Eq. 5 assumes f = 3/r while the code uses
+// the full Minnaert formula (f ~ 3.29/r).
+function dampingCoeff(r) {
+  return 0.13 / r + 0.0072 * Math.pow(r, -1.5);
+}
+
+function computeVoices(rMin, rMax) {
+  const voices = [];
+  const logMin = Math.log(rMin);
+  const logMax = Math.log(rMax);
+  for (let i = 0; i < N_VOICES; i++) {
+    const t = N_VOICES > 1 ? i / (N_VOICES - 1) : 0;
+    const r = Math.exp(logMin + t * (logMax - logMin));
+    const freq = minnaertFreq(r);
+    const damp = dampingCoeff(r);
+    const duration = Math.min(0.3, 6.0 / damp);
+    voices.push({ radius: r, freq, damping: damp, duration });
+  }
+  return voices;
+}
+
+// ============================================================
+// B. Audio Engine Setup
+// ============================================================
+
+let audioCtx = null;
+let masterGain = null;
+let highpassFilter = null;
+let analyserNode = null;
+let voiceGainNodes = [];
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+      latencyHint: 'interactive'
+    });
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = state.gain;
+
+    highpassFilter = audioCtx.createBiquadFilter();
+    highpassFilter.type = 'highpass';
+    highpassFilter.frequency.value = 30;
+    highpassFilter.Q.value = 0.707;
+
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 4096;
+    analyserNode.smoothingTimeConstant = 0.4;
+
+    masterGain.connect(highpassFilter);
+    highpassFilter.connect(analyserNode);
+    analyserNode.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function rebuildVoiceGainNodes() {
+  voiceGainNodes.forEach(g => { try { g.disconnect(); } catch(e) {} });
+  voiceGainNodes = [];
+  for (let k = 0; k < N_VOICES; k++) {
+    const g = audioCtx.createGain();
+    g.gain.value = 0;
+    g.connect(masterGain);
+    voiceGainNodes.push(g);
+  }
+  updateVoiceAmplitudes();
+}
+
+function updateVoiceAmplitudes() {
+  if (!voiceGainNodes.length) return;
+  // Paper Eq. 6: a_k = D * r_k^alpha. We omit D (depth factor) and normalize.
+  const amps = [];
+  let maxAmp = 0;
+  for (let k = 0; k < N_VOICES; k++) {
+    const a = Math.pow(state.voices[k].radius, state.alpha);
+    amps.push(a);
+    if (a > maxAmp) maxAmp = a;
+  }
+  const scale = maxAmp > 0 ? 1.0 / maxAmp : 1;
+  for (let k = 0; k < N_VOICES; k++) {
+    voiceGainNodes[k].gain.value = amps[k] * scale;
+  }
+}
+
+// ============================================================
+// C. Buffer Pre-rendering
+// ============================================================
+
+let flatBuffers = [];
+let chirpBuffers = [];
+
+function renderFlatBuffer(voice) {
+  const sr = audioCtx.sampleRate;
+  const len = Math.ceil(voice.duration * sr);
+  const data = new Float32Array(len);
+  const w = 2 * Math.PI * voice.freq;
+  const d = voice.damping;
+  let peak = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / sr;
+    data[i] = Math.sin(w * t) * Math.exp(-d * t);
+    const abs = Math.abs(data[i]);
+    if (abs > peak) peak = abs;
+  }
+  if (peak > 0) {
+    const s = 1.0 / peak;
+    for (let i = 0; i < len; i++) data[i] *= s;
+  }
+  const buf = audioCtx.createBuffer(1, len, sr);
+  buf.copyToChannel(data, 0);
+  return buf;
+}
+
+function renderChirpBuffer(voice, xi) {
+  if (xi <= 0) return null;
+  const sr = audioCtx.sampleRate;
+  const len = Math.ceil(voice.duration * sr);
+  const data = new Float32Array(len);
+  const f0 = voice.freq;
+  const d = voice.damping;
+  const sigma = xi * d;
+  let peak = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / sr;
+    const phase = 2 * Math.PI * f0 * (t + sigma * t * t / 2);
+    data[i] = Math.sin(phase) * Math.exp(-d * t);
+    const abs = Math.abs(data[i]);
+    if (abs > peak) peak = abs;
+  }
+  if (peak > 0) {
+    const s = 1.0 / peak;
+    for (let i = 0; i < len; i++) data[i] *= s;
+  }
+  const buf = audioCtx.createBuffer(1, len, sr);
+  buf.copyToChannel(data, 0);
+  return buf;
+}
+
+function renderAllBuffers() {
+  flatBuffers = state.voices.map(v => renderFlatBuffer(v));
+  chirpBuffers = state.voices.map(v => renderChirpBuffer(v, state.xi));
+}
+
+function renderChirpBuffersOnly() {
+  chirpBuffers = state.voices.map(v => renderChirpBuffer(v, state.xi));
+}
+
+// ============================================================
+// D. Event-Mode Scheduling
+// ============================================================
+
+const LOOK_AHEAD = 0.08;
+const SCHEDULE_INTERVAL = 30;
+let nextEventTime = [];
+let voiceRates = [];
+let schedulerTimer = null;
+
+function computeRates() {
+  let Z = 0;
+  for (let k = 0; k < N_VOICES; k++) {
+    Z += Math.pow(1.0 / state.voices[k].radius, state.gamma);
+  }
+  if (Z === 0) Z = 1;
+  voiceRates = [];
+  for (let k = 0; k < N_VOICES; k++) {
+    const lam = (state.bubblesPerSec / Z) * Math.pow(1.0 / state.voices[k].radius, state.gamma);
+    voiceRates.push(lam);
+  }
+}
+
+function expRandom(rate) {
+  if (rate <= 0) return 1e10;
+  return -Math.log(Math.random()) / rate;
+}
+
+function startEventMode() {
+  computeRates();
+  const now = audioCtx.currentTime;
+  nextEventTime = [];
+  for (let k = 0; k < N_VOICES; k++) {
+    nextEventTime.push(now + expRandom(voiceRates[k]));
+  }
+  scheduleEvents();
+}
+
+function scheduleEvents() {
+  if (!state.running || state.mode !== 'event') return;
+  const horizon = audioCtx.currentTime + LOOK_AHEAD;
+  for (let k = 0; k < N_VOICES; k++) {
+    const rate = voiceRates[k];
+    if (rate <= 0) continue;
+    while (nextEventTime[k] < horizon) {
+      const useChirp = state.riseCutoff > 0 && Math.random() < state.riseCutoff && chirpBuffers[k];
+      const buf = useChirp ? chirpBuffers[k] : flatBuffers[k];
+      if (buf) {
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(voiceGainNodes[k]);
+        src.start(nextEventTime[k]);
+      }
+      nextEventTime[k] += expRandom(rate);
+    }
+  }
+  schedulerTimer = setTimeout(scheduleEvents, SCHEDULE_INTERVAL);
+}
+
+function stopEventMode() {
+  if (schedulerTimer !== null) {
+    clearTimeout(schedulerTimer);
+    schedulerTimer = null;
+  }
+}
+
+// ============================================================
+// E. Grain-Mode Synthesis
+// ============================================================
+
+// Each grain is unique (fresh random event placements). Grains overlap
+// with Hann fade-in/out so the texture never audibly repeats.
+const GRAIN_DURATION = 1.0;       // 1 second per grain
+const GRAIN_OVERLAP = 0.06;       // 60ms Hann crossfade at edges
+const MAX_EVENTS_PER_VOICE = 400; // cap for rendering performance
+let grainSchedulerTimer = null;
+let nextGrainTime = 0;
+
+function renderGrain() {
+  const sr = audioCtx.sampleRate;
+  const len = Math.ceil(GRAIN_DURATION * sr);
+  const out = new Float32Array(len);
+
+  computeRates();
+
+  // Per-voice amplitudes: paper Eq. 6, a_k = r_k^alpha (normalized)
+  const amps = [];
+  let maxAmp = 0;
+  for (let k = 0; k < N_VOICES; k++) {
+    const a = Math.pow(state.voices[k].radius, state.alpha);
+    amps.push(a);
+    if (a > maxAmp) maxAmp = a;
+  }
+  const ampScale = maxAmp > 0 ? 1.0 / maxAmp : 1;
+
+  for (let k = 0; k < N_VOICES; k++) {
+    const rate = voiceRates[k];
+    let nEvents = Math.round(rate * GRAIN_DURATION);
+    if (nEvents <= 0) continue;
+    nEvents = Math.min(nEvents, MAX_EVENTS_PER_VOICE);
+
+    const amp = amps[k] * ampScale;
+
+    // Use pre-rendered buffer data for efficiency
+    const flatData = flatBuffers[k] ? flatBuffers[k].getChannelData(0) : null;
+    const chirpData = (chirpBuffers[k]) ? chirpBuffers[k].getChannelData(0) : null;
+    if (!flatData) continue;
+
+    for (let ev = 0; ev < nEvents; ev++) {
+      const t0 = Math.floor(Math.random() * len);
+      const useChirp = chirpData && state.riseCutoff > 0 && Math.random() < state.riseCutoff;
+      const src = useChirp ? chirpData : flatData;
+      const copyLen = Math.min(src.length, len - t0);
+      for (let i = 0; i < copyLen; i++) {
+        out[t0 + i] += src[i] * amp;
+      }
+    }
+  }
+
+  // Hann taper at edges for seamless overlap
+  const taperLen = Math.ceil(GRAIN_OVERLAP * sr);
+  for (let i = 0; i < taperLen && i < len; i++) {
+    const w = 0.5 * (1 - Math.cos(Math.PI * i / taperLen));
+    out[i] *= w;
+    out[len - 1 - i] *= w;
+  }
+
+  // Normalize to prevent clipping
+  let peak = 0;
+  for (let i = 0; i < len; i++) {
+    const abs = Math.abs(out[i]);
+    if (abs > peak) peak = abs;
+  }
+  if (peak > 0.9) {
+    const s = 0.9 / peak;
+    for (let i = 0; i < len; i++) out[i] *= s;
+  }
+
+  const buf = audioCtx.createBuffer(1, len, sr);
+  buf.copyToChannel(out, 0);
+  return buf;
+}
+
+function scheduleGrains() {
+  if (!state.running || state.mode !== 'grain') return;
+  const now = audioCtx.currentTime;
+  // Keep at least 1 grain scheduled ahead
+  while (nextGrainTime < now + GRAIN_DURATION) {
+    const buf = renderGrain();
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(masterGain);
+    src.start(nextGrainTime);
+    nextGrainTime += GRAIN_DURATION - GRAIN_OVERLAP;
+  }
+  grainSchedulerTimer = setTimeout(scheduleGrains, (GRAIN_DURATION - GRAIN_OVERLAP) * 500);
+}
+
+function startGrainMode() {
+  nextGrainTime = audioCtx.currentTime;
+  scheduleGrains();
+}
+
+function stopGrainMode() {
+  if (grainSchedulerTimer !== null) {
+    clearTimeout(grainSchedulerTimer);
+    grainSchedulerTimer = null;
+  }
+}
+
+// ============================================================
+// F. Mode Manager
+// ============================================================
+
+const GRAIN_THRESHOLD = 10000;
+
+const state = {
+  running: false,
+  mode: 'event',
+  bubblesPerSec: 1000,
+  alpha: 1.0,
+  gamma: 2.0,
+  xi: 0.0,
+  riseCutoff: 0.0,
+  rMin: 0.0002,
+  rMax: 0.05,
+  gain: 0.5,
+  voices: [],
+};
+
+state.voices = computeVoices(state.rMin, state.rMax);
+
+let radiusDebounce = null;
+let xiDebounce = null;
+
+function updateParameters() {
+  masterGain && (masterGain.gain.value = state.gain);
+  updateVoiceAmplitudes();
+  computeRates();
+
+  if (state.running) {
+    const targetMode = state.bubblesPerSec > GRAIN_THRESHOLD ? 'grain' : 'event';
+    if (targetMode !== state.mode) {
+      if (state.mode === 'event') stopEventMode();
+      else stopGrainMode();
+      state.mode = targetMode;
+      if (state.mode === 'event') startEventMode();
+      else startGrainMode();
+    }
+    // In grain mode, parameter changes are picked up automatically
+    // when the next grain is rendered by the scheduler.
+  }
+}
+
+function onRadiusChange() {
+  state.voices = computeVoices(state.rMin, state.rMax);
+  if (audioCtx) {
+    clearTimeout(radiusDebounce);
+    radiusDebounce = setTimeout(() => {
+      renderAllBuffers();
+      rebuildVoiceGainNodes();
+      updateParameters();
+    }, 120);
+  }
+}
+
+function onXiChange() {
+  if (audioCtx) {
+    clearTimeout(xiDebounce);
+    xiDebounce = setTimeout(renderChirpBuffersOnly, 100);
+  }
+}
+
+function startSynth() {
+  ensureAudioCtx();
+  renderAllBuffers();
+  rebuildVoiceGainNodes();
+  state.mode = state.bubblesPerSec > GRAIN_THRESHOLD ? 'grain' : 'event';
+  state.running = true;
+  if (state.mode === 'event') startEventMode();
+  else startGrainMode();
+  startSpectrogram();
+}
+
+function stopSynth() {
+  state.running = false;
+  stopEventMode();
+  stopGrainMode();
+  stopSpectrogram();
+}
+
+// ============================================================
+// G. Spectrogram
+// ============================================================
+
+const spectrogramCanvas = document.getElementById('spectrogramCanvas');
+const spectroCtx = spectrogramCanvas.getContext('2d');
+const labelsCanvas = document.getElementById('spectrogramLabels');
+const labelsCtx = labelsCanvas.getContext('2d');
+let freqData = null;
+let animFrameId = null;
+
+function setupCanvas() {
+  const rect = spectrogramCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  spectrogramCanvas.width = rect.width * dpr;
+  spectrogramCanvas.height = rect.height * dpr;
+  spectroCtx.setTransform(1, 0, 0, 1, 0, 0);
+  spectroCtx.fillStyle = '#0a0a1e';
+  spectroCtx.fillRect(0, 0, spectrogramCanvas.width, spectrogramCanvas.height);
+
+  // Size the overlay to match
+  labelsCanvas.width = rect.width * dpr;
+  labelsCanvas.height = rect.height * dpr;
+  labelsCanvas.style.width = rect.width + 'px';
+  labelsCanvas.style.height = rect.height + 'px';
+  drawFreqLabels();
+}
+
+// Color map: black -> navy -> blue -> cyan -> yellow -> white
+function dbToColor(dB) {
+  const lo = -100, hi = -15;
+  let t = (dB - lo) / (hi - lo);
+  t = Math.max(0, Math.min(1, t));
+  const stops = [
+    [0.0,   2,   2,  15],
+    [0.2,  10,  20,  80],
+    [0.4,  20,  60, 160],
+    [0.6,  30, 160, 180],
+    [0.8, 220, 220,  40],
+    [1.0, 255, 255, 200],
+  ];
+  let i = 0;
+  while (i < stops.length - 2 && t > stops[i + 1][0]) i++;
+  const s0 = stops[i], s1 = stops[i + 1];
+  const f = (t - s0[0]) / (s1[0] - s0[0]);
+  return [
+    Math.round(s0[1] + f * (s1[1] - s0[1])),
+    Math.round(s0[2] + f * (s1[2] - s0[2])),
+    Math.round(s0[3] + f * (s1[3] - s0[3])),
+  ];
+}
+
+// Spectrogram frequency range and log mapping (shared by drawing and labels)
+const SPECTRO_FMIN = 40;
+const SPECTRO_FMAX = 18000;
+const SPECTRO_LOG_FMIN = Math.log(SPECTRO_FMIN);
+const SPECTRO_LOG_FMAX = Math.log(SPECTRO_FMAX);
+
+const FREQ_LABELS = [
+  [100, '100'], [300, '300'], [1000, '1k'], [3000, '3k'], [10000, '10k']
+];
+
+function freqToY(freq, h) {
+  const frac = (Math.log(freq) - SPECTRO_LOG_FMIN) / (SPECTRO_LOG_FMAX - SPECTRO_LOG_FMIN);
+  return h * (1 - frac);
+}
+
+function drawFreqLabels() {
+  const w = labelsCanvas.width;
+  const h = labelsCanvas.height;
+  const dpr = window.devicePixelRatio || 1;
+
+  labelsCtx.clearRect(0, 0, w, h);
+  labelsCtx.save();
+  labelsCtx.font = `${10 * dpr}px system-ui, sans-serif`;
+  labelsCtx.textBaseline = 'middle';
+
+  for (const [freq, text] of FREQ_LABELS) {
+    const py = freqToY(freq, h);
+
+    // Tick mark
+    labelsCtx.strokeStyle = 'rgba(255,255,255,0.45)';
+    labelsCtx.lineWidth = dpr;
+    labelsCtx.beginPath();
+    labelsCtx.moveTo(0, py);
+    labelsCtx.lineTo(4 * dpr, py);
+    labelsCtx.stroke();
+
+    // Text label with dark shadow for readability
+    const tx = 6 * dpr;
+    labelsCtx.fillStyle = 'rgba(0,0,0,0.7)';
+    labelsCtx.fillText(text, tx + dpr, py + dpr);
+    labelsCtx.fillStyle = 'rgba(255,255,255,0.75)';
+    labelsCtx.fillText(text, tx, py);
+  }
+
+  // "Hz" unit label below the lowest tick
+  const unitY = freqToY(FREQ_LABELS[0][0], h) + 14 * dpr;
+  labelsCtx.font = `${8 * dpr}px system-ui, sans-serif`;
+  labelsCtx.fillStyle = 'rgba(255,255,255,0.45)';
+  labelsCtx.fillText('Hz', 6 * dpr, unitY);
+
+  labelsCtx.restore();
+}
+
+function drawSpectrogramFrame() {
+  if (!analyserNode || !freqData) return;
+  analyserNode.getFloatFrequencyData(freqData);
+
+  const w = spectrogramCanvas.width;
+  const h = spectrogramCanvas.height;
+
+  // Shift left by 1 pixel
+  const imgData = spectroCtx.getImageData(1, 0, w - 1, h);
+  spectroCtx.putImageData(imgData, 0, 0);
+
+  // Draw new column at right edge
+  const sr = audioCtx ? audioCtx.sampleRate : 44100;
+  const fftSize = analyserNode ? analyserNode.fftSize : 4096;
+  const fMax = Math.min(sr / 2, SPECTRO_FMAX);
+
+  const col = spectroCtx.createImageData(1, h);
+  const d = col.data;
+
+  for (let py = 0; py < h; py++) {
+    const frac = 1 - py / h;
+    const freq = Math.exp(SPECTRO_LOG_FMIN + frac * (Math.log(fMax) - SPECTRO_LOG_FMIN));
+    const bin = Math.round(freq * fftSize / sr);
+    const clampedBin = Math.max(0, Math.min(freqData.length - 1, bin));
+    const dB = freqData[clampedBin];
+    const [r, g, b] = dbToColor(dB);
+    const idx = py * 4;
+    d[idx] = r;
+    d[idx + 1] = g;
+    d[idx + 2] = b;
+    d[idx + 3] = 255;
+  }
+  spectroCtx.putImageData(col, w - 1, 0);
+}
+
+function spectrogramLoop() {
+  drawSpectrogramFrame();
+  animFrameId = requestAnimationFrame(spectrogramLoop);
+}
+
+function startSpectrogram() {
+  if (animFrameId) return;
+  freqData = new Float32Array(analyserNode.frequencyBinCount);
+  spectrogramLoop();
+}
+
+function stopSpectrogram() {
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
+}
+
+// ============================================================
+// H. UI & Event Handlers
+// ============================================================
+
+// Slider references
+const sliders = {
+  rate:       { el: document.getElementById('rateSlider'),       val: document.getElementById('rateVal') },
+  gamma:      { el: document.getElementById('gammaSlider'),      val: document.getElementById('gammaVal') },
+  alpha:      { el: document.getElementById('alphaSlider'),      val: document.getElementById('alphaVal') },
+  rmin:       { el: document.getElementById('rminSlider'),       val: document.getElementById('rminVal') },
+  rmax:       { el: document.getElementById('rmaxSlider'),       val: document.getElementById('rmaxVal') },
+  xi:         { el: document.getElementById('xiSlider'),         val: document.getElementById('xiVal') },
+  riseCutoff: { el: document.getElementById('riseCutoffSlider'), val: document.getElementById('riseCutoffVal') },
+  gain:       { el: document.getElementById('gainSlider'),       val: document.getElementById('gainVal') },
+};
+
+// Log mappings for rate: slider 0-1000 -> 10^(0..5) = 1..100000
+function rateFromSlider(v) { return Math.round(Math.pow(10, v * 5 / 1000)); }
+function sliderFromRate(r) { return Math.round(Math.log10(Math.max(1, r)) * 1000 / 5); }
+
+// Log mappings for rmin: slider 0-1000 -> 0.1mm..5.0mm
+function rminFromSlider(v) {
+  const logMin = Math.log10(0.1), logMax = Math.log10(5.0);
+  return Math.pow(10, logMin + v / 1000 * (logMax - logMin));
+}
+function sliderFromRmin(mm) {
+  const logMin = Math.log10(0.1), logMax = Math.log10(5.0);
+  return Math.round((Math.log10(mm) - logMin) / (logMax - logMin) * 1000);
+}
+
+// Log mappings for rmax: slider 0-1000 -> 5.0mm..100.0mm
+function rmaxFromSlider(v) {
+  const logMin = Math.log10(5.0), logMax = Math.log10(100.0);
+  return Math.pow(10, logMin + v / 1000 * (logMax - logMin));
+}
+function sliderFromRmax(mm) {
+  const logMin = Math.log10(5.0), logMax = Math.log10(100.0);
+  return Math.round((Math.log10(mm) - logMin) / (logMax - logMin) * 1000);
+}
+
+function formatRate(r) {
+  if (r >= 1000) return (r / 1000).toFixed(r >= 10000 ? 0 : 1) + 'k';
+  return r.toString();
+}
+
+function updateSliderDisplays() {
+  sliders.rate.val.textContent = formatRate(state.bubblesPerSec) + '/s';
+  sliders.gamma.val.textContent = state.gamma.toFixed(1);
+  sliders.alpha.val.textContent = state.alpha.toFixed(1);
+  sliders.rmin.val.textContent = (state.rMin * 1000).toFixed(1) + ' mm';
+  sliders.rmax.val.textContent = (state.rMax * 1000).toFixed(1) + ' mm';
+  sliders.xi.val.textContent = state.xi.toFixed(2);
+  sliders.riseCutoff.val.textContent = state.riseCutoff.toFixed(2);
+  sliders.gain.val.textContent = state.gain.toFixed(2);
+}
+
+// Wire slider events
+sliders.rate.el.addEventListener('input', () => {
+  state.bubblesPerSec = rateFromSlider(parseInt(sliders.rate.el.value));
+  updateSliderDisplays();
+  updateParameters();
+});
+
+sliders.gamma.el.addEventListener('input', () => {
+  state.gamma = parseInt(sliders.gamma.el.value) / 100;
+  updateSliderDisplays();
+  updateParameters();
+});
+
+sliders.alpha.el.addEventListener('input', () => {
+  state.alpha = parseInt(sliders.alpha.el.value) / 100;
+  updateSliderDisplays();
+  updateParameters();
+});
+
+sliders.rmin.el.addEventListener('input', () => {
+  state.rMin = rminFromSlider(parseInt(sliders.rmin.el.value)) / 1000;
+  updateSliderDisplays();
+  onRadiusChange();
+});
+
+sliders.rmax.el.addEventListener('input', () => {
+  state.rMax = rmaxFromSlider(parseInt(sliders.rmax.el.value)) / 1000;
+  updateSliderDisplays();
+  onRadiusChange();
+});
+
+sliders.xi.el.addEventListener('input', () => {
+  state.xi = parseInt(sliders.xi.el.value) / 100;
+  updateSliderDisplays();
+  onXiChange();
+});
+
+sliders.riseCutoff.el.addEventListener('input', () => {
+  state.riseCutoff = parseInt(sliders.riseCutoff.el.value) / 100;
+  updateSliderDisplays();
+});
+
+sliders.gain.el.addEventListener('input', () => {
+  state.gain = parseInt(sliders.gain.el.value) / 100;
+  updateSliderDisplays();
+  if (masterGain) masterGain.gain.value = state.gain;
+});
+
+// Presets
+const PRESETS = {
+  dripping:     { bubblesPerSec: 5,     gamma: 2,   alpha: 1,   xi: 0.1, riseCutoff: 0.3, rMin: 0.001,  rMax: 0.01,  gain: 0.5 },
+  lightRain:    { bubblesPerSec: 5000,  gamma: 6,   alpha: 1.5, xi: 0,   riseCutoff: 0,   rMin: 0.0002, rMax: 0.005, gain: 0.5 },
+  stream:       { bubblesPerSec: 2000,  gamma: 1.5, alpha: 1,   xi: 0.05,riseCutoff: 0.2, rMin: 0.0002, rMax: 0.02,  gain: 0.5 },
+  waterfall:    { bubblesPerSec: 80000, gamma: 1,   alpha: 0.5, xi: 0,   riseCutoff: 0,   rMin: 0.0002, rMax: 0.05,  gain: 0.5 },
+  strawBubbles: { bubblesPerSec: 20,    gamma: 0,   alpha: 1,   xi: 0.8, riseCutoff: 0.9, rMin: 0.005,  rMax: 0.03,  gain: 0.5 },
+};
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  Object.assign(state, p);
+  state.voices = computeVoices(state.rMin, state.rMax);
+
+  // Update slider positions
+  sliders.rate.el.value = sliderFromRate(state.bubblesPerSec);
+  sliders.gamma.el.value = Math.round(state.gamma * 100);
+  sliders.alpha.el.value = Math.round(state.alpha * 100);
+  sliders.rmin.el.value = sliderFromRmin(state.rMin * 1000);
+  sliders.rmax.el.value = sliderFromRmax(state.rMax * 1000);
+  sliders.xi.el.value = Math.round(state.xi * 100);
+  sliders.riseCutoff.el.value = Math.round(state.riseCutoff * 100);
+  sliders.gain.el.value = Math.round(state.gain * 100);
+  updateSliderDisplays();
+
+  if (audioCtx) {
+    renderAllBuffers();
+    rebuildVoiceGainNodes();
+    updateParameters();
+  }
+
+  // Highlight active preset
+  document.querySelectorAll('#presetBar button').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`#presetBar button[data-preset="${name}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+document.querySelectorAll('#presetBar button').forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+});
+
+// Start/Stop
+const startStopBtn = document.getElementById('startStopBtn');
+startStopBtn.addEventListener('click', () => {
+  if (!state.running) {
+    startSynth();
+    startStopBtn.textContent = 'Stop';
+  } else {
+    stopSynth();
+    startStopBtn.textContent = 'Start';
+  }
+});
+
+// ============================================================
+// I. Initialization
+// ============================================================
+
+setupCanvas();
+applyPreset('stream');
+
+window.addEventListener('resize', () => {
+  setupCanvas();
+});
+
+</script>
+</body>
+</html>

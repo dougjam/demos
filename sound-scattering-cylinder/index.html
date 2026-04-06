@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plane Wave Scattering by a Rigid Cylinder</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+a { color: #2563eb; }
+.back-link {
+  display: inline-block;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  text-decoration: none;
+}
+.back-link:hover { text-decoration: underline; }
+h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 1.25rem; }
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+  align-items: flex-end;
+}
+.controls-row2 { margin-bottom: 1rem; align-items: center; }
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 200px;
+}
+.control-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.slider-row input[type="range"] { flex: 1; }
+.slider-val {
+  min-width: 2.5rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: #333;
+}
+button.play-btn {
+  width: 5.5rem;
+  padding: 0.45rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+}
+button.play-btn:hover { background: #1d4ed8; }
+.check-group {
+  display: flex;
+  gap: 0.75rem;
+}
+.check-group label {
+  font-size: 0.85rem;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.check-group input[type="checkbox"] { cursor: pointer; }
+.seg-bar {
+  display: flex;
+  gap: 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg-bar button {
+  flex: 1;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  background: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #333;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid #ddd;
+  white-space: nowrap;
+}
+.seg-bar button:last-child { border-right: none; }
+.seg-bar button:hover { background: #f0f4ff; }
+.seg-bar button.active { background: #2563eb; color: #fff; }
+.canvas-container {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+#scatterCanvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  image-rendering: auto;
+}
+.propagation-label {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.75rem;
+  pointer-events: none;
+  user-select: none;
+}
+details {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+details details {
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  background: #fafafa;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  user-select: none;
+}
+details details summary { font-size: 0.9rem; }
+summary:hover { color: #2563eb; }
+.info-content { margin-top: 0.75rem; font-size: 0.88rem; color: #333; line-height: 1.65; }
+.info-content p { margin-bottom: 0.6rem; }
+.info-content ul, .info-content ol { margin: 0.4rem 0 0.6rem 1.25rem; }
+.info-content li { margin-bottom: 0.25rem; }
+.info-content em { font-style: italic; }
+.info-content .ref { font-size: 0.82rem; color: #555; }
+.info-content .eq { display: block; margin: 0.5rem 0 0.5rem 1.5rem; font-family: 'Times New Roman', 'Cambria', Georgia, serif; font-size: 1rem; line-height: 1.6; }
+.info-content .eq-inline { font-family: 'Times New Roman', 'Cambria', Georgia, serif; }
+.info-content h4 { font-size: 0.9rem; margin: 0.75rem 0 0.35rem; color: #1a1a1a; }
+@media (max-width: 500px) {
+  .controls { flex-direction: column; align-items: stretch; }
+}
+</style>
+</head>
+<body>
+
+<a class="back-link" href="../index.html">&larr; Back to demos</a>
+<h1>Plane Wave Scattering by a Rigid Cylinder</h1>
+<p class="subtitle">
+  Exact cylindrical harmonic series solution for a time-harmonic plane wave diffracting around a rigid (sound-hard) circular cylinder in 2D.
+</p>
+
+<div class="controls">
+  <div class="control-group">
+    <label>ka (dimensionless frequency)</label>
+    <div class="slider-row">
+      <input type="range" id="kaSlider" min="0.5" max="50" step="0.1" value="3.0">
+      <span class="slider-val" id="kaVal">3.0</span>
+    </div>
+  </div>
+  <div class="control-group">
+    <label>Scattering terms N</label>
+    <div class="slider-row">
+      <input type="range" id="nSlider" min="0" max="80" step="1" value="13">
+      <span class="slider-val" id="nVal">13</span>
+    </div>
+  </div>
+  <div class="control-group">
+    <label>Animation speed</label>
+    <div class="slider-row">
+      <input type="range" id="speedSlider" min="0.1" max="3.0" step="0.1" value="1.0">
+      <span class="slider-val" id="speedVal">1.0</span>
+    </div>
+  </div>
+</div>
+
+<div class="controls controls-row2">
+  <div class="control-group" style="flex:0 0 auto">
+    <button class="play-btn" id="playBtn">Pause</button>
+  </div>
+  <div class="control-group">
+    <label>Wave components</label>
+    <div class="check-group">
+      <label><input type="checkbox" id="showInc" checked> Incident</label>
+      <label><input type="checkbox" id="showScat" checked> Scattered</label>
+    </div>
+  </div>
+  <div class="control-group" style="flex:0 1 auto">
+    <label>Display</label>
+    <div class="seg-bar" id="displayMode">
+      <button class="active" data-mode="realpart">Re(<span class="eq-inline">p</span>)</button>
+      <button data-mode="modulus">|<span class="eq-inline">p</span>|</button>
+    </div>
+  </div>
+  <div class="control-group" style="flex:0 1 auto">
+    <label>Anti-aliasing</label>
+    <div class="seg-bar" id="aaMode">
+      <button class="active" data-aa="1">Off</button>
+      <button data-aa="2">2&times;</button>
+      <button data-aa="4">4&times;</button>
+    </div>
+  </div>
+</div>
+
+<div class="canvas-container">
+  <canvas id="scatterCanvas" width="300" height="300"></canvas>
+  <div class="propagation-label">wave direction &#x2192;</div>
+</div>
+
+<details>
+  <summary>About the physics model</summary>
+  <div class="info-content">
+    <p>
+      This demo computes the exact analytical solution for a plane wave scattering off a rigid
+      circular cylinder in two dimensions. "Rigid" means the cylinder is perfectly immovable:
+      the fluid particle velocity normal to the surface must be zero, which via Euler&rsquo;s
+      equation requires the normal pressure gradient to vanish. Mathematically, this is a
+      Neumann boundary condition&mdash;zero normal derivative of pressure at the surface [1, 2].
+    </p>
+    <p>
+      The total pressure field outside the cylinder is the sum of two parts:
+      <span class="eq-inline"><strong>p</strong> = <strong>p</strong><sub>inc</sub> + <strong>p</strong><sub>scat</sub></span>,
+      where <span class="eq-inline"><strong>p</strong><sub>inc</sub></span> is the incident plane wave
+      (propagating in the +<em>x</em> direction) and
+      <span class="eq-inline"><strong>p</strong><sub>scat</sub></span> is the scattered wave produced
+      by the cylinder. The checkboxes above let you view each component independently.
+    </p>
+    <p>
+      The solution uses a classical technique [1, Ch.&nbsp;8]: expand the incoming plane wave as a
+      sum of cylindrical harmonics (Bessel functions times cosines) using the Jacobi&ndash;Anger
+      identity, then match each term with an outgoing cylindrical wave (a Hankel function) whose
+      amplitude is chosen so the boundary condition is satisfied [2, Ch.&nbsp;2]. Because each
+      harmonic order <em>n</em> can be solved independently, the whole problem reduces to evaluating
+      a finite sum of special functions.
+    </p>
+    <p>
+      The key parameter is <strong><span class="eq-inline">ka</span></strong> = 2&pi;<em>a</em>/&lambda;,
+      which compares the cylinder circumference to the acoustic wavelength [3]:
+    </p>
+    <ul>
+      <li><strong>Low <span class="eq-inline">ka</span> (<span class="eq-inline">ka</span> &lt; 1):</strong>
+          The wavelength is much larger than the cylinder.
+          Waves diffract strongly around the obstacle, and there is little shadowing.</li>
+      <li><strong>Intermediate <span class="eq-inline">ka</span> (<span class="eq-inline">ka</span> ~ 1&ndash;5):</strong>
+          Partial shadowing and complex interference patterns. The most visually interesting range.</li>
+      <li><strong>High <span class="eq-inline">ka</span> (<span class="eq-inline">ka</span> &gt;&gt; 1):</strong>
+          A distinct geometric shadow forms behind the cylinder, with bright and dark fringes at the shadow edges.</li>
+    </ul>
+    <p>
+      The <strong>Scattering terms</strong> slider controls how many terms are kept in the
+      scattered wave series. Using too few produces visible artifacts, especially at higher
+      frequencies. The incident plane wave is always evaluated exactly.
+      The <strong>|p|</strong> display mode shows the pressure amplitude
+      (modulus of the complex pressure field), which is constant in time but varies spatially.
+    </p>
+
+    <details>
+      <summary>Technical details: series solution derivation</summary>
+      <div class="info-content">
+        <h4>1. Governing equation</h4>
+        <p>
+          For time-harmonic acoustic waves at angular frequency &omega;, the pressure satisfies the
+          Helmholtz equation:
+        </p>
+        <span class="eq">&nabla;&sup2;p + k&sup2;p = 0,&emsp;k = &omega;/c</span>
+        <p>
+          where <span class="eq-inline">c</span> is the sound speed and
+          <span class="eq-inline">k</span> is the wavenumber.
+          In polar coordinates (<span class="eq-inline">r</span>, <span class="eq-inline">&theta;</span>),
+          solutions separable in <span class="eq-inline">r</span> and <span class="eq-inline">&theta;</span>
+          take the form
+          <span class="eq-inline">Z<sub>n</sub>(kr) cos(n&theta;)</span> or
+          <span class="eq-inline">Z<sub>n</sub>(kr) sin(n&theta;)</span>,
+          where <span class="eq-inline">Z<sub>n</sub></span> is any Bessel function of order
+          <span class="eq-inline">n</span>.
+        </p>
+
+        <h4>2. Incident wave expansion (Jacobi&ndash;Anger identity)</h4>
+        <p>
+          A plane wave propagating in the +<em>x</em> direction has the spatial part
+          <span class="eq-inline">p<sub>inc</sub> = e<sup>ikx</sup> = e<sup>ikr cos&theta;</sup></span>.
+          The Jacobi&ndash;Anger identity expands this into cylindrical harmonics [1, Ch.&nbsp;7]:
+        </p>
+        <span class="eq">
+          e<sup>ikr cos&theta;</sup> = &sum;<sub>n=0</sub><sup>&infin;</sup>
+          &epsilon;<sub>n</sub> i<sup>n</sup> J<sub>n</sub>(kr) cos(n&theta;)
+        </span>
+        <p>
+          where <span class="eq-inline">J<sub>n</sub></span> is the Bessel function of the first kind
+          of order <span class="eq-inline">n</span>, and
+          <span class="eq-inline">&epsilon;<sub>n</sub></span> is the Neumann factor:
+          <span class="eq-inline">&epsilon;<sub>0</sub> = 1</span>,
+          <span class="eq-inline">&epsilon;<sub>n</sub> = 2</span> for
+          <span class="eq-inline">n &ge; 1</span>.
+          Only cosine terms appear because the incident wave and cylinder geometry are symmetric about
+          the <em>x</em>-axis.
+        </p>
+
+        <h4>3. Scattered field and boundary condition</h4>
+        <p>
+          The scattered field must consist of outgoing waves at infinity, represented by Hankel
+          functions of the first kind <span class="eq-inline">H<sub>n</sub><sup>(1)</sup></span>.
+          (Note: this derivation uses the
+          <span class="eq-inline">e<sup>&minus;i&omega;t</sup></span> time convention, under which
+          <span class="eq-inline">H<sub>n</sub><sup>(1)</sup></span>, with asymptotic behavior
+          <span class="eq-inline">e<sup>+ikr</sup>/&radic;r</span>, represents outgoing waves
+          satisfying the Sommerfeld radiation condition. Texts using
+          <span class="eq-inline">e<sup>+i&omega;t</sup></span> would use
+          <span class="eq-inline">H<sub>n</sub><sup>(2)</sup></span> instead.)
+        </p>
+        <span class="eq">
+          p<sub>scat</sub> = &sum;<sub>n=0</sub><sup>&infin;</sup>
+          &epsilon;<sub>n</sub> i<sup>n</sup> A<sub>n</sub>
+          H<sub>n</sub><sup>(1)</sup>(kr) cos(n&theta;)
+        </span>
+        <p>
+          The rigid (Neumann) boundary condition
+          <span class="eq-inline">&part;p/&part;r = 0</span> at
+          <span class="eq-inline">r = a</span> requires, for each order
+          <span class="eq-inline">n</span> independently:
+        </p>
+        <span class="eq">
+          &epsilon;<sub>n</sub> i<sup>n</sup>
+          [J<sub>n</sub>&prime;(ka) + A<sub>n</sub> H<sub>n</sub><sup>(1)&prime;</sup>(ka)] = 0
+        </span>
+        <p>Solving for the scattering coefficient:</p>
+        <span class="eq">
+          A<sub>n</sub> = &minus;J<sub>n</sub>&prime;(ka) / H<sub>n</sub><sup>(1)&prime;</sup>(ka)
+        </span>
+
+        <h4>4. Total field</h4>
+        <p>Combining the incident and scattered contributions:</p>
+        <span class="eq">
+          p(r,&theta;) = &sum;<sub>n=0</sub><sup>N</sup>
+          &epsilon;<sub>n</sub> i<sup>n</sup>
+          [J<sub>n</sub>(kr) + A<sub>n</sub> H<sub>n</sub><sup>(1)</sup>(kr)]
+          cos(n&theta;)
+        </span>
+        <p>
+          The animated display shows
+          <span class="eq-inline">Re[p(r,&theta;) e<sup>&minus;i&omega;t</sup>]</span>
+          at each time step, where <span class="eq-inline">&omega;t</span> advances continuously.
+          The modulus display shows
+          <span class="eq-inline">|p(r,&theta;)|</span>,
+          which is constant in time.
+        </p>
+        <p>
+          <strong>Implementation note:</strong> In the demo, the incident plane wave is evaluated
+          directly as <span class="eq-inline">e<sup>ikx</sup></span> (a single cosine and sine per
+          pixel) rather than via the Jacobi&ndash;Anger series expansion. This avoids truncation
+          artifacts in the plane wave at high <span class="eq-inline">ka</span>, where many terms
+          would be needed for the series to converge far from the cylinder. The
+          <span class="eq-inline">N</span>-term series is used only for the scattered wave, which
+          converges rapidly at <span class="eq-inline">N &asymp; &lceil;ka&rceil; + 10</span>.
+          The total field computed is:
+        </p>
+        <span class="eq">
+          p = e<sup>ikx</sup> + &sum;<sub>n=0</sub><sup>N&minus;1</sup>
+          &epsilon;<sub>n</sub> i<sup>n</sup> A<sub>n</sub>
+          H<sub>n</sub><sup>(1)</sup>(kr) cos(n&theta;)
+        </span>
+        <p>
+          which is mathematically equivalent to the combined form above.
+        </p>
+
+        <h4>5. Bessel function derivatives</h4>
+        <p>
+          Derivatives of any cylindrical Bessel function
+          <span class="eq-inline">Z<sub>n</sub></span>
+          (whether <span class="eq-inline">J<sub>n</sub></span>,
+          <span class="eq-inline">Y<sub>n</sub></span>, or
+          <span class="eq-inline">H<sub>n</sub><sup>(1)</sup></span>)
+          are computed via the recurrence [4, &sect;9.1.27]:
+        </p>
+        <span class="eq">
+          Z<sub>n</sub>&prime;(z) = Z<sub>n&minus;1</sub>(z) &minus; (n/z) Z<sub>n</sub>(z)
+        </span>
+        <p>
+          For <span class="eq-inline">n = 0</span>:
+          <span class="eq-inline">Z<sub>0</sub>&prime;(z) = &minus;Z<sub>1</sub>(z)</span>.
+          Since <span class="eq-inline">H<sub>n</sub><sup>(1)</sup> = J<sub>n</sub> + iY<sub>n</sub></span>,
+          the derivative
+          <span class="eq-inline">H<sub>n</sub><sup>(1)&prime;</sup> = J<sub>n</sub>&prime; + iY<sub>n</sub>&prime;</span>,
+          making <span class="eq-inline">A<sub>n</sub></span> a complex number computed via
+          complex division.
+        </p>
+
+        <h4>6. Numerical computation of Bessel functions</h4>
+        <p>
+          The demo computes <span class="eq-inline">J<sub>n</sub>(x)</span> and
+          <span class="eq-inline">Y<sub>n</sub>(x)</span> for integer order
+          <span class="eq-inline">n</span> and real argument
+          <span class="eq-inline">x</span> without external libraries.
+          Seed values <span class="eq-inline">J<sub>0</sub></span>,
+          <span class="eq-inline">J<sub>1</sub></span>,
+          <span class="eq-inline">Y<sub>0</sub></span>,
+          <span class="eq-inline">Y<sub>1</sub></span> are computed from rational polynomial
+          approximations tabulated in Abramowitz &amp; Stegun [4, &sect;9.4].
+          Higher orders use:
+        </p>
+        <ul>
+          <li><strong><span class="eq-inline">J<sub>n</sub>(x)</span>:</strong> Miller&rsquo;s
+              backward recurrence from a high starting index, normalized using the identity
+              <span class="eq-inline">J<sub>0</sub>(x) + 2&sum;<sub>k=1</sub><sup>&infin;</sup> J<sub>2k</sub>(x) = 1</span>.
+              Backward recurrence is stable because
+              <span class="eq-inline">J<sub>n</sub></span> is the minimal (subdominant) solution
+              of the three-term recurrence.</li>
+          <li><strong><span class="eq-inline">Y<sub>n</sub>(x)</span>:</strong> Forward recurrence
+              from <span class="eq-inline">Y<sub>0</sub></span>,
+              <span class="eq-inline">Y<sub>1</sub></span> via
+              <span class="eq-inline">Y<sub>n+1</sub>(x) = (2n/x)Y<sub>n</sub>(x) &minus; Y<sub>n&minus;1</sub>(x)</span>.
+              Forward recurrence is stable for
+              <span class="eq-inline">Y<sub>n</sub></span> because it is the dominant solution.</li>
+        </ul>
+
+        <h4>7. Series convergence</h4>
+        <p>
+          The series converges rapidly because the scattering coefficients
+          <span class="eq-inline">A<sub>n</sub> &rarr; 0</span> for
+          <span class="eq-inline">n &gg; ka</span> (the numerator
+          <span class="eq-inline">J<sub>n</sub>&prime;(ka)</span> vanishes
+          while the denominator grows). A safe truncation is
+          <span class="eq-inline">N &asymp; &lceil;ka&rceil; + 10</span> [1, Ch.&nbsp;8].
+          The demo lets you reduce <span class="eq-inline">N</span> below this to observe
+          convergence artifacts.
+          For real-time performance, Bessel values
+          <span class="eq-inline">J<sub>n</sub>(kr)</span>,
+          <span class="eq-inline">Y<sub>n</sub>(kr)</span> are precomputed on a radial lookup
+          table of 512 bins, and
+          <span class="eq-inline">cos(n&theta;)</span> is evaluated via Chebyshev recurrence
+          rather than repeated trigonometric calls.
+        </p>
+      </div>
+    </details>
+
+    <p class="ref" style="margin-top:0.75rem"><strong>References</strong></p>
+    <ol class="ref">
+      <li>P. M. Morse and K. U. Ingard, <em>Theoretical Acoustics</em>, Princeton University Press, 1968.
+          <a href="https://press.princeton.edu/books/paperback/9780691024011/theoretical-acoustics" target="_blank" rel="noopener">[publisher]</a></li>
+      <li>J. J. Bowman, T. B. A. Senior, and P. L. E. Uslenghi, <em>Electromagnetic and Acoustic
+          Scattering by Simple Shapes</em>, Hemisphere Publishing, 1987.
+          <a href="https://apps.dtic.mil/sti/tr/pdf/AD0699859.pdf" target="_blank" rel="noopener">[PDF]</a></li>
+      <li>A. D. Pierce, <em>Acoustics: An Introduction to Its Physical Principles and Applications</em>,
+          3rd ed., Springer, 2019.
+          <a href="https://link.springer.com/book/10.1007/978-3-030-11214-1" target="_blank" rel="noopener">[springer]</a></li>
+      <li>M. Abramowitz and I. A. Stegun, <em>Handbook of Mathematical Functions</em>,
+          National Bureau of Standards, 1964.
+          <a href="https://personal.math.ubc.ca/~cbm/aands/abramowitz_and_stegun.pdf" target="_blank" rel="noopener">[PDF]</a></li>
+    </ol>
+  </div>
+</details>
+
+<footer style="max-width:900px;margin:2rem auto 0;padding:1rem 0;border-top:1px solid #ddd;font-size:0.75rem;color:#888;text-align:center;">
+  AI-assisted demo by Doug James using Claude Code. Provided "as is" for educational purposes; no warranty.
+  <a href="https://github.com/dougjam/demos/blob/master/DEMO_DISCLAIMER.md" style="color:#888;">Full disclaimer</a>.
+</footer>
+
+<script>
+// ============================================================
+// Bessel functions — Abramowitz & Stegun polynomial approximations
+// for integer-order real-argument J_n(x), Y_n(x)
+// ============================================================
+
+function besselJ0(x) {
+  const ax = Math.abs(x);
+  if (ax < 8.0) {
+    const y = x * x;
+    const a = 57568490574.0 + y * (-13362590354.0 + y * (651619640.7
+            + y * (-11214424.18 + y * (77392.33017 + y * (-184.9052456)))));
+    const b = 57568490411.0 + y * (1029532985.0 + y * (9494680.718
+            + y * (59272.64853 + y * (267.8532712 + y * 1.0))));
+    return a / b;
+  }
+  const z = 8.0 / ax;
+  const y = z * z;
+  const xx = ax - 0.785398164;
+  const p = 1.0 + y * (-0.1098628627e-2 + y * (0.2734510407e-4
+          + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const q = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5
+          + y * (0.7621095161e-6 - y * 0.934935152e-7)));
+  return Math.sqrt(0.636619772 / ax) * (p * Math.cos(xx) - z * q * Math.sin(xx));
+}
+
+function besselJ1(x) {
+  const ax = Math.abs(x);
+  if (ax < 8.0) {
+    const y = x * x;
+    const a = x * (72362614232.0 + y * (-7895059235.0 + y * (242396853.1
+            + y * (-2972611.439 + y * (15704.48260 + y * (-30.16036606))))));
+    const b = 144725228442.0 + y * (2300535178.0 + y * (18583304.74
+            + y * (99447.43394 + y * (376.9991397 + y * 1.0))));
+    return a / b;
+  }
+  const z = 8.0 / ax;
+  const y = z * z;
+  const xx = ax - 2.356194491;
+  const p = 1.0 + y * (0.183105e-2 + y * (-0.3516396496e-4
+          + y * (0.2457520174e-5 + y * (-0.240337019e-6))));
+  const q = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5
+          + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  const ans = Math.sqrt(0.636619772 / ax) * (p * Math.cos(xx) - z * q * Math.sin(xx));
+  return x < 0 ? -ans : ans;
+}
+
+function besselY0(x) {
+  if (x < 8.0) {
+    const y = x * x;
+    const a = -2957821389.0 + y * (7062834065.0 + y * (-512359803.6
+            + y * (10879881.29 + y * (-86327.92757 + y * 228.4622733))));
+    const b = 40076544269.0 + y * (745249964.8 + y * (7189466.438
+            + y * (47447.26470 + y * (226.1030244 + y * 1.0))));
+    return (a / b) + 0.636619772 * besselJ0(x) * Math.log(x);
+  }
+  const z = 8.0 / x;
+  const y = z * z;
+  const xx = x - 0.785398164;
+  const p = 1.0 + y * (-0.1098628627e-2 + y * (0.2734510407e-4
+          + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const q = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5
+          + y * (0.7621095161e-6 - y * 0.934935152e-7)));
+  return Math.sqrt(0.636619772 / x) * (p * Math.sin(xx) + z * q * Math.cos(xx));
+}
+
+function besselY1(x) {
+  if (x < 3.0) {
+    const y = x * x;
+    const a = x * (-4900604943000.0 + y * (1275274390000.0 + y * (-51534866838.0
+            + y * (622785432.7 + y * (-3130827.267 + y * 7.284509659)))));
+    const b = 24995805700000.0 + y * (424441966400.0 + y * (3733650367.0
+            + y * (22459040.02 + y * (103680.8528 + y * (365.9584658 + y * 1.0)))));
+    return (a / b) + 0.636619772 * (besselJ1(x) * Math.log(x) - 1.0 / x);
+  }
+  const z = 8.0 / x;
+  const y = z * z;
+  const xx = x - 2.356194491;
+  const p = 1.0 + y * (0.183105e-2 + y * (-0.3516396496e-4
+          + y * (0.2457520174e-5 + y * (-0.240337019e-6))));
+  const q = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5
+          + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  return Math.sqrt(0.636619772 / x) * (p * Math.sin(xx) + z * q * Math.cos(xx));
+}
+
+// J_n(x) for n = 0..maxN via Miller's backward recurrence
+function computeJn(maxN, x) {
+  const result = new Float64Array(maxN + 1);
+  if (x === 0) { result[0] = 1.0; return result; }
+  if (maxN === 0) { result[0] = besselJ0(x); return result; }
+
+  const M = Math.max(maxN + 20, Math.ceil(2 * Math.abs(x)) + 20);
+  const f = new Float64Array(M + 2);
+  f[M + 1] = 0;
+  f[M] = 1e-30;
+
+  for (let m = M; m >= 1; m--) {
+    f[m - 1] = (2 * m / x) * f[m] - f[m + 1];
+    if (Math.abs(f[m - 1]) > 1e100) {
+      for (let j = m - 1; j <= M + 1; j++) f[j] *= 1e-100;
+    }
+  }
+
+  let scale = f[0];
+  for (let k = 2; k <= M; k += 2) scale += 2 * f[k];
+
+  for (let n = 0; n <= maxN; n++) {
+    result[n] = f[n] / scale;
+  }
+  return result;
+}
+
+// Y_n(x) for n = 0..maxN via forward recurrence
+function computeYn(maxN, x) {
+  const result = new Float64Array(maxN + 1);
+  result[0] = besselY0(x);
+  if (maxN === 0) return result;
+  result[1] = besselY1(x);
+  for (let n = 1; n < maxN; n++) {
+    result[n + 1] = (2 * n / x) * result[n] - result[n - 1];
+  }
+  return result;
+}
+
+// ============================================================
+// Physics: scattering coefficients and radial lookup table
+// ============================================================
+
+const RENDER_W = 300;
+const RENDER_H = 300;
+const DOMAIN_HALF = 5.0;
+const CYL_RADIUS = 1.0;
+const R_MAX = DOMAIN_HALF * Math.SQRT2;
+const NUM_BINS = 512;
+
+let ka = 3.0;
+let N = 13;
+let animSpeed = 1.0;
+let phase = 0;
+let lastTime = 0;
+let paused = false;
+let showIncident = true;
+let showScattered = true;
+let displayMode = 'realpart'; // 'realpart' or 'modulus'
+let needsRedraw = true;
+
+// Precomputed coefficient arrays
+let coeffRe = null;
+let coeffIm = null;
+let epsIn_re = null;
+let epsIn_im = null;
+
+// Radial lookup tables
+let jTable = null;
+let yTable = null;
+
+function precompute() {
+  const np1 = N + 1;
+
+  const jAtKa = computeJn(N + 1, ka);
+  const yAtKa = computeYn(N + 1, ka);
+
+  coeffRe = new Float64Array(np1);
+  coeffIm = new Float64Array(np1);
+  epsIn_re = new Float64Array(np1);
+  epsIn_im = new Float64Array(np1);
+
+  for (let n = 0; n < N; n++) {
+    const eps = (n === 0) ? 1 : 2;
+    const mod = n % 4;
+    let inRe, inIm;
+    if (mod === 0) { inRe = 1; inIm = 0; }
+    else if (mod === 1) { inRe = 0; inIm = 1; }
+    else if (mod === 2) { inRe = -1; inIm = 0; }
+    else { inRe = 0; inIm = -1; }
+
+    epsIn_re[n] = eps * inRe;
+    epsIn_im[n] = eps * inIm;
+
+    let jnpKa, ynpKa;
+    if (n === 0) {
+      jnpKa = -jAtKa[1];
+      ynpKa = -yAtKa[1];
+    } else {
+      jnpKa = jAtKa[n - 1] - (n / ka) * jAtKa[n];
+      ynpKa = yAtKa[n - 1] - (n / ka) * yAtKa[n];
+    }
+
+    const denom = jnpKa * jnpKa + ynpKa * ynpKa;
+    let cnRe, cnIm;
+    if (!isFinite(denom) || denom < 1e-30) {
+      cnRe = 0; cnIm = 0;
+    } else {
+      cnRe = -jnpKa * jnpKa / denom;
+      cnIm = jnpKa * ynpKa / denom;
+      if (!isFinite(cnRe)) cnRe = 0;
+      if (!isFinite(cnIm)) cnIm = 0;
+    }
+
+    coeffRe[n] = epsIn_re[n] * cnRe - epsIn_im[n] * cnIm;
+    coeffIm[n] = epsIn_re[n] * cnIm + epsIn_im[n] * cnRe;
+  }
+
+  jTable = new Float64Array(NUM_BINS * np1);
+  yTable = new Float64Array(NUM_BINS * np1);
+
+  for (let b = 0; b < NUM_BINS; b++) {
+    const r = CYL_RADIUS + (R_MAX - CYL_RADIUS) * b / (NUM_BINS - 1);
+    const kr = ka * r;
+    const jn = computeJn(N, kr);
+    const yn = computeYn(N, kr);
+    const off = b * np1;
+    for (let n = 0; n < N; n++) {
+      jTable[off + n] = isFinite(jn[n]) ? jn[n] : 0;
+      yTable[off + n] = isFinite(yn[n]) ? yn[n] : 0;
+    }
+  }
+  needsRedraw = true;
+}
+
+// ============================================================
+// Colormaps
+// ============================================================
+
+// Blue-white-red diverging colormap for Re(p)
+const CMAP_SIZE = 512;
+const cmapR = new Uint8Array(CMAP_SIZE);
+const cmapG = new Uint8Array(CMAP_SIZE);
+const cmapB = new Uint8Array(CMAP_SIZE);
+
+(function buildColormap() {
+  for (let i = 0; i < CMAP_SIZE; i++) {
+    const t = 2 * i / (CMAP_SIZE - 1) - 1;
+    let r, g, b;
+    if (t < 0) {
+      const s = 1 + t;
+      r = Math.round(59 + s * 196);
+      g = Math.round(130 + s * 125);
+      b = Math.round(246 + s * 9);
+    } else {
+      const s = t;
+      r = 255;
+      g = Math.round(255 - s * 187);
+      b = Math.round(255 - s * 187);
+    }
+    cmapR[i] = r;
+    cmapG[i] = g;
+    cmapB[i] = b;
+  }
+})();
+
+// White-to-purple colormap for |p|
+const modR = new Uint8Array(CMAP_SIZE);
+const modG = new Uint8Array(CMAP_SIZE);
+const modB = new Uint8Array(CMAP_SIZE);
+(function buildModulusCmap() {
+  // White (255,255,255) at |p|=0 to purple (100, 20, 140) at |p|=max
+  for (let i = 0; i < CMAP_SIZE; i++) {
+    const t = Math.sqrt(i / (CMAP_SIZE - 1)); // sqrt for contrast in low-amplitude
+    modR[i] = Math.round(255 - t * 155);  // 255 -> 100
+    modG[i] = Math.round(255 - t * 235);  // 255 -> 20
+    modB[i] = Math.round(255 - t * 115);  // 255 -> 140
+  }
+})();
+
+function colormapIndex(value) {
+  const t = (value + 2) * 0.25;
+  let idx = (t * (CMAP_SIZE - 1)) | 0;
+  if (idx < 0) idx = 0;
+  if (idx >= CMAP_SIZE) idx = CMAP_SIZE - 1;
+  return idx;
+}
+
+function modulusIndex(absVal) {
+  // Map |p| from [0, 2] to [0, CMAP_SIZE-1]
+  let t = absVal * 0.5;
+  if (t > 1) t = 1;
+  let idx = (t * (CMAP_SIZE - 1)) | 0;
+  if (idx >= CMAP_SIZE) idx = CMAP_SIZE - 1;
+  return idx;
+}
+
+// ============================================================
+// Rendering
+// ============================================================
+
+const canvas = document.getElementById('scatterCanvas');
+const ctx = canvas.getContext('2d');
+const binScale = (NUM_BINS - 1) / (R_MAX - CYL_RADIUS);
+
+let renderScale = 1;
+let rw, rh, imageData, data, pixelToWorld, worldOriginPx, cylPxRadius;
+
+function updateRenderSize() {
+  rw = RENDER_W * renderScale;
+  rh = RENDER_H * renderScale;
+  canvas.width = rw;
+  canvas.height = rh;
+  imageData = ctx.createImageData(rw, rh);
+  data = imageData.data;
+  pixelToWorld = 2 * DOMAIN_HALF / rw;
+  worldOriginPx = rw / 2;
+  cylPxRadius = CYL_RADIUS / pixelToWorld;
+  needsRedraw = true;
+}
+updateRenderSize();
+
+function renderFrame(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min(timestamp - lastTime, 50);
+  lastTime = timestamp;
+
+  const isModulus = displayMode === 'modulus';
+
+  if (!paused && !isModulus) {
+    phase += dt * animSpeed * 0.004;
+    needsRedraw = true;
+  }
+
+  if (!needsRedraw) {
+    requestAnimationFrame(renderFrame);
+    return;
+  }
+  needsRedraw = false;
+
+  const cosWT = Math.cos(phase);
+  const sinWT = Math.sin(phase);
+
+  const np1 = N + 1;
+  const w = rw;
+  const h = rh;
+  const doInc = showIncident;
+  const doScat = showScattered;
+
+  // Cylinder interior color: dark for Re(p), white for |p|
+  const cylCol = isModulus ? 240 : 20;
+  const cylCol2 = isModulus ? 240 : 20;
+  const cylCol3 = isModulus ? 240 : 35;
+
+  for (let py = 0; py < h; py++) {
+    const wy = (worldOriginPx - py) * pixelToWorld;
+    const rowOff = py * w * 4;
+
+    for (let px = 0; px < w; px++) {
+      const wx = (px - worldOriginPx) * pixelToWorld;
+      const off = rowOff + px * 4;
+      const r2 = wx * wx + wy * wy;
+
+      // Inside the cylinder: show opaque disk when scattered field is active
+      // (the total/scattered field is only defined for r >= a).
+      // In incident-only mode, render the plane wave through the cylinder
+      // region, since p_inc = e^{ikx} is the undisturbed wave before the
+      // obstacle is introduced and has no boundary condition to satisfy.
+      if (r2 < CYL_RADIUS * CYL_RADIUS) {
+        if (doScat || !doInc) {
+          data[off] = cylCol;
+          data[off + 1] = cylCol2;
+          data[off + 2] = cylCol3;
+          data[off + 3] = 255;
+          continue;
+        }
+      }
+
+      // Incident wave evaluated directly: p_inc = e^{ikx} = cos(kx) + i*sin(kx)
+      // (exact, no series truncation needed)
+      let pRe = 0, pIm = 0;
+      if (doInc) {
+        const kx = ka * wx;
+        pRe = Math.cos(kx);
+        pIm = Math.sin(kx);
+      }
+
+      // Scattered wave from cylindrical harmonic series
+      if (doScat) {
+        const r = Math.sqrt(r2);
+        const theta = Math.atan2(wy, wx);
+
+        let bin = ((r - CYL_RADIUS) * binScale + 0.5) | 0;
+        if (bin < 0) bin = 0;
+        if (bin >= NUM_BINS) bin = NUM_BINS - 1;
+        const tableOff = bin * np1;
+
+        const cosT = Math.cos(theta);
+        let cosNm1 = 1;
+        let cosN = cosT;
+        const twoC = 2 * cosT;
+
+        for (let n = 0; n < N; n++) {
+          const cosNT = (n === 0) ? 1 : (n === 1) ? cosT : cosN;
+
+          const jn = jTable[tableOff + n];
+          const yn = yTable[tableOff + n];
+
+          pRe += (coeffRe[n] * jn - coeffIm[n] * yn) * cosNT;
+          pIm += (coeffIm[n] * jn + coeffRe[n] * yn) * cosNT;
+
+          if (n >= 1) {
+            const cosNp1 = twoC * cosN - cosNm1;
+            cosNm1 = cosN;
+            cosN = cosNp1;
+          }
+        }
+      }
+
+      if (isModulus) {
+        const absP = Math.sqrt(pRe * pRe + pIm * pIm);
+        const mi = modulusIndex(absP);
+        data[off] = modR[mi];
+        data[off + 1] = modG[mi];
+        data[off + 2] = modB[mi];
+      } else {
+        const value = pRe * cosWT + pIm * sinWT;
+        const ci = colormapIndex(value);
+        data[off] = cmapR[ci];
+        data[off + 1] = cmapG[ci];
+        data[off + 2] = cmapB[ci];
+      }
+      data[off + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // Draw cylinder boundary ring (only when the cylinder is visible)
+  if (doScat || !doInc) {
+    ctx.strokeStyle = isModulus ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1.5 * renderScale;
+    ctx.beginPath();
+    ctx.arc(rw / 2, rh / 2, cylPxRadius, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(renderFrame);
+}
+
+// ============================================================
+// UI
+// ============================================================
+
+const kaSlider = document.getElementById('kaSlider');
+const nSlider = document.getElementById('nSlider');
+const speedSlider = document.getElementById('speedSlider');
+const kaValEl = document.getElementById('kaVal');
+const nValEl = document.getElementById('nVal');
+const speedValEl = document.getElementById('speedVal');
+const playBtn = document.getElementById('playBtn');
+const showIncEl = document.getElementById('showInc');
+const showScatEl = document.getElementById('showScat');
+
+// Temporarily disable AA while dragging sliders for responsiveness
+let userAAScale = 1; // tracks the user's chosen AA setting
+function beginSliderDrag() {
+  if (renderScale > 1) {
+    renderScale = 1;
+    updateRenderSize();
+  }
+}
+function endSliderDrag() {
+  if (renderScale !== userAAScale) {
+    renderScale = userAAScale;
+    updateRenderSize();
+  }
+}
+[kaSlider, nSlider, speedSlider].forEach(function(s) {
+  s.addEventListener('mousedown', beginSliderDrag);
+  s.addEventListener('touchstart', beginSliderDrag);
+  s.addEventListener('mouseup', endSliderDrag);
+  s.addEventListener('touchend', endSliderDrag);
+});
+// Also restore on mouseup anywhere (in case cursor leaves the slider during drag)
+document.addEventListener('mouseup', function() {
+  if (renderScale !== userAAScale) {
+    renderScale = userAAScale;
+    updateRenderSize();
+  }
+});
+
+kaSlider.addEventListener('input', function() {
+  ka = parseFloat(this.value);
+  kaValEl.textContent = ka.toFixed(1);
+  N = Math.min(80, Math.max(1, Math.ceil(ka) + 10));
+  nSlider.value = N;
+  nValEl.textContent = N;
+  precompute();
+});
+
+nSlider.addEventListener('input', function() {
+  N = parseInt(this.value);
+  nValEl.textContent = N;
+  precompute();
+});
+
+speedSlider.addEventListener('input', function() {
+  animSpeed = parseFloat(this.value);
+  speedValEl.textContent = animSpeed.toFixed(1);
+});
+
+playBtn.addEventListener('click', function() {
+  paused = !paused;
+  playBtn.textContent = paused ? 'Play' : 'Pause';
+  if (!paused) {
+    lastTime = 0; // reset dt to avoid jump
+    needsRedraw = true;
+  }
+});
+
+showIncEl.addEventListener('change', function() {
+  showIncident = this.checked;
+  needsRedraw = true;
+});
+
+showScatEl.addEventListener('change', function() {
+  showScattered = this.checked;
+  needsRedraw = true;
+});
+
+document.getElementById('aaMode').addEventListener('click', function(e) {
+  const btn = e.target.closest('button');
+  if (!btn || btn.classList.contains('active')) return;
+  this.querySelector('.active').classList.remove('active');
+  btn.classList.add('active');
+  userAAScale = parseInt(btn.dataset.aa);
+  renderScale = userAAScale;
+  updateRenderSize();
+});
+
+// Display mode segmented control
+document.getElementById('displayMode').addEventListener('click', function(e) {
+  const btn = e.target.closest('button');
+  if (!btn || btn.classList.contains('active')) return;
+  this.querySelector('.active').classList.remove('active');
+  btn.classList.add('active');
+  displayMode = btn.dataset.mode;
+  needsRedraw = true;
+
+  if (displayMode === 'modulus') {
+    // Save pause state and force pause in modulus mode (time-independent)
+    this._wasPaused = paused;
+    paused = true;
+    playBtn.textContent = 'Play';
+    speedSlider.disabled = true;
+    speedSlider.parentElement.parentElement.style.opacity = '0.4';
+  } else {
+    speedSlider.disabled = false;
+    speedSlider.parentElement.parentElement.style.opacity = '1';
+    // Restore the pause state from before entering modulus mode
+    paused = this._wasPaused || false;
+    playBtn.textContent = paused ? 'Play' : 'Pause';
+    if (!paused) lastTime = 0;
+  }
+});
+
+// ============================================================
+// Init
+// ============================================================
+
+precompute();
+requestAnimationFrame(renderFrame);
+</script>
+
+</body>
+</html>
