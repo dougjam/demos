@@ -404,6 +404,99 @@ details .info-content {
       material character: metals have low &alpha; and &beta; (long ring), wood has high &alpha; (short,
       warm), rubber has both high (dead thud) [3].
     </p>
+    <p style="margin-top:0.5rem;">
+      <strong>Material presets</strong> are perceptually tuned within physically plausible ranges.
+      The implied loss factors (&eta;&nbsp;=&nbsp;2&xi;) at each preset's fundamental frequency fall
+      within values reported in the vibration engineering literature: steel and glass at
+      &eta;&nbsp;&asymp;&nbsp;0.006, aluminum at &eta;&nbsp;&asymp;&nbsp;0.014, ceramic at
+      &eta;&nbsp;&asymp;&nbsp;0.04, wood at &eta;&nbsp;&asymp;&nbsp;0.1, and rubber at
+      &eta;&nbsp;&asymp;&nbsp;1.0 [8, 9]. The fundamental frequencies are free parameters chosen for
+      perceptual clarity; in physical objects they would be determined by geometry, density,
+      and stiffness.
+    </p>
+
+    <h4 style="margin-top:0.75rem;">Appendix: Material Preset Values</h4>
+    <p style="margin-top:0.25rem;">
+      Each preset sets three Rayleigh damping parameters. The table below shows the preset
+      values and the physical quantities they imply at the fundamental frequency.
+    </p>
+    <table style="margin-top:0.5rem; border-collapse:collapse; font-size:0.8rem; width:100%;">
+      <thead>
+        <tr style="border-bottom:2px solid #ccc; text-align:left;">
+          <th style="padding:0.25rem 0.5rem;">Material</th>
+          <th style="padding:0.25rem 0.5rem;">f<sub>1</sub> (Hz)</th>
+          <th style="padding:0.25rem 0.5rem;">&alpha; (1/s)</th>
+          <th style="padding:0.25rem 0.5rem;">&beta; (s)</th>
+          <th style="padding:0.25rem 0.5rem;">&xi;<sub>1</sub></th>
+          <th style="padding:0.25rem 0.5rem;">&eta;<sub>1</sub></th>
+          <th style="padding:0.25rem 0.5rem;">T60 (s)</th>
+        </tr>
+      </thead>
+      <tbody style="font-variant-numeric:tabular-nums;">
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:0.2rem 0.5rem;">Steel</td>
+          <td style="padding:0.2rem 0.5rem;">440</td>
+          <td style="padding:0.2rem 0.5rem;">1.0</td>
+          <td style="padding:0.2rem 0.5rem;">2&times;10<sup>&minus;6</sup></td>
+          <td style="padding:0.2rem 0.5rem;">0.003</td>
+          <td style="padding:0.2rem 0.5rem;">0.006</td>
+          <td style="padding:0.2rem 0.5rem;">1.70</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:0.2rem 0.5rem;">Aluminum</td>
+          <td style="padding:0.2rem 0.5rem;">520</td>
+          <td style="padding:0.2rem 0.5rem;">2.0</td>
+          <td style="padding:0.2rem 0.5rem;">4&times;10<sup>&minus;6</sup></td>
+          <td style="padding:0.2rem 0.5rem;">0.007</td>
+          <td style="padding:0.2rem 0.5rem;">0.014</td>
+          <td style="padding:0.2rem 0.5rem;">0.62</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:0.2rem 0.5rem;">Glass</td>
+          <td style="padding:0.2rem 0.5rem;">880</td>
+          <td style="padding:0.2rem 0.5rem;">0.5</td>
+          <td style="padding:0.2rem 0.5rem;">1&times;10<sup>&minus;6</sup></td>
+          <td style="padding:0.2rem 0.5rem;">0.003</td>
+          <td style="padding:0.2rem 0.5rem;">0.006</td>
+          <td style="padding:0.2rem 0.5rem;">0.89</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:0.2rem 0.5rem;">Wood</td>
+          <td style="padding:0.2rem 0.5rem;">220</td>
+          <td style="padding:0.2rem 0.5rem;">40.0</td>
+          <td style="padding:0.2rem 0.5rem;">5&times;10<sup>&minus;5</sup></td>
+          <td style="padding:0.2rem 0.5rem;">0.049</td>
+          <td style="padding:0.2rem 0.5rem;">0.098</td>
+          <td style="padding:0.2rem 0.5rem;">0.20</td>
+        </tr>
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:0.2rem 0.5rem;">Ceramic</td>
+          <td style="padding:0.2rem 0.5rem;">660</td>
+          <td style="padding:0.2rem 0.5rem;">5.0</td>
+          <td style="padding:0.2rem 0.5rem;">1&times;10<sup>&minus;5</sup></td>
+          <td style="padding:0.2rem 0.5rem;">0.021</td>
+          <td style="padding:0.2rem 0.5rem;">0.043</td>
+          <td style="padding:0.2rem 0.5rem;">0.16</td>
+        </tr>
+        <tr>
+          <td style="padding:0.2rem 0.5rem;">Rubber</td>
+          <td style="padding:0.2rem 0.5rem;">110</td>
+          <td style="padding:0.2rem 0.5rem;">200</td>
+          <td style="padding:0.2rem 0.5rem;">1&times;10<sup>&minus;3</sup></td>
+          <td style="padding:0.2rem 0.5rem;">0.49</td>
+          <td style="padding:0.2rem 0.5rem;">0.98</td>
+          <td style="padding:0.2rem 0.5rem;">0.04</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:0.35rem; font-size:0.78rem; color:#666;">
+      <strong>&xi;<sub>1</sub></strong> is the damping ratio (fraction of critical damping) at the
+      fundamental: &xi;&nbsp;=&nbsp;&alpha;/(2&omega;)&nbsp;+&nbsp;&beta;&omega;/2.
+      <strong>&eta;<sub>1</sub></strong>&nbsp;=&nbsp;2&xi; is the loss factor, the quantity typically
+      tabulated in materials science handbooks.
+      <strong>T60</strong> is the time for the fundamental mode to decay by 60&nbsp;dB
+      (a factor of 1000 in amplitude): T60&nbsp;=&nbsp;6&thinsp;ln(10)/decay&nbsp;&asymp;&nbsp;13.8/decay.
+    </p>
 
     <h4 style="margin-top:0.75rem;">References</h4>
     <ol style="margin-top:0.25rem; padding-left:1.5em; font-size:0.8rem;">
@@ -429,6 +522,12 @@ details .info-content {
         <a href="https://doi.org/10.1007/978-3-319-05868-1" target="_blank">doi:10.1007/978-3-319-05868-1</a></li>
       <li>A. W. Leissa, <em>Vibration of Plates</em>, NASA SP-160, 1969.
         <a href="https://ntrs.nasa.gov/citations/19700009156" target="_blank">NASA Technical Reports</a></li>
+      <li>L. Cremer, M. Heckl, and B. A. T. Petersson, <em>Structure-Borne Sound: Structural
+        Vibrations and Sound Radiation at Audio Frequencies</em>, 3rd&nbsp;ed. Springer, 2005.
+        <a href="https://doi.org/10.1007/b137728" target="_blank">doi:10.1007/b137728</a></li>
+      <li>A. D. Nashif, D. I. G. Jones, and J. P. Henderson, <em>Vibration Damping</em>.
+        Wiley, 1985. ISBN: 978-0471867722.
+        <a href="https://www.wiley.com/en-us/Vibration+Damping-p-9780471867722" target="_blank">Publisher page</a></li>
     </ol>
   </div>
 </details>
@@ -1654,6 +1753,10 @@ function init() {
   state.model = createModel('string', 1.0);
   state.modeEnabled = new Array(state.model.maxModes).fill(true);
 
+  // Highlight initial material preset
+  state.activeMaterial = 'steel';
+  document.querySelector('#materialGrid button[data-mat="steel"]').classList.add('active');
+
   // Set initial slider values from state
   fundSlider.value = state.fundamental;
   alphaSlider.value = sliderFromAlpha(state.alphaR);
@@ -1680,5 +1783,11 @@ function init() {
 
 init();
 </script>
+
+<footer style="max-width:900px;margin:2rem auto 0;padding:1rem 0;border-top:1px solid #ddd;font-size:0.75rem;color:#888;text-align:center;">
+  AI-assisted demo by Doug James using Claude Code. Provided "as is" for educational purposes; no warranty.
+  <a href="https://github.com/dougjam/demos/blob/master/DEMO_DISCLAIMER.md" style="color:#888;">Full disclaimer</a>.
+</footer>
+
 </body>
 </html>
