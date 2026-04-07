@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acoustic Point Sources</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+a { color: #2563eb; }
+.back-link {
+  display: inline-block;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  text-decoration: none;
+}
+.back-link:hover { text-decoration: underline; }
+h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+/* Two-column grid */
+.app-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1rem;
+  align-items: start;
+}
+.main-panel { min-width: 0; }
+.canvas-container {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid #ddd;
+}
+#fieldCanvas {
+  display: block;
+  width: 100%;
+  image-rendering: auto;
+}
+.source-label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.72rem;
+  pointer-events: none;
+  user-select: none;
+}
+.split-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.65rem;
+  pointer-events: none;
+  user-select: none;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.05em;
+}
+.split-label-left { left: 6px; }
+.split-label-right { right: 6px; }
+
+/* Control panel (right column) */
+.control-panel {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.ctrl-section {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.ctrl-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.control-group:last-child { margin-bottom: 0; }
+.control-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.slider-row input[type="range"] { flex: 1; }
+.slider-val {
+  min-width: 3.5rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: #333;
+}
+.slider-hint {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: -0.1rem;
+}
+.seg-bar {
+  display: flex;
+  gap: 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg-bar button {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  background: #fff;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: #333;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid #ddd;
+  white-space: nowrap;
+}
+.seg-bar button:last-child { border-right: none; }
+.seg-bar button:hover { background: #f0f4ff; }
+.seg-bar button.active { background: #2563eb; color: #fff; }
+.playback-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+button.play-btn {
+  width: 5.5rem;
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+}
+button.play-btn:hover { background: #1d4ed8; }
+button.action-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button.action-btn:hover { background: #f0f4ff; }
+.check-group label {
+  font-size: 0.85rem;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.check-group input[type="checkbox"] { cursor: pointer; }
+
+/* Directivity canvas */
+.directivity-container {
+  text-align: center;
+}
+#directivityCanvas {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  margin: 0 auto;
+  image-rendering: auto;
+}
+
+/* Radial profile (below main canvas, same width) */
+.radial-container {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+#radialCanvas {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+
+/* About section */
+details {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  user-select: none;
+}
+summary:hover { color: #2563eb; }
+.info-content { margin-top: 0.75rem; font-size: 0.88rem; color: #333; line-height: 1.65; }
+.info-content p { margin-bottom: 0.6rem; }
+.info-content ul, .info-content ol { margin: 0.4rem 0 0.6rem 1.25rem; }
+.info-content li { margin-bottom: 0.25rem; }
+.info-content em { font-style: italic; }
+.info-content h4 { font-size: 0.9rem; margin: 0.75rem 0 0.35rem; color: #1a1a1a; }
+.info-content .ref { font-size: 0.82rem; color: #555; }
+.info-content .eq {
+  display: block;
+  margin: 0.5rem 0 0.5rem 1.5rem;
+  font-family: 'Times New Roman', 'Cambria', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.info-content .eq-inline {
+  font-family: 'Times New Roman', 'Cambria', Georgia, serif;
+}
+
+@media (max-width: 900px) {
+  .app-grid {
+    grid-template-columns: 1fr;
+  }
+  .control-panel {
+    position: static;
+    max-height: none;
+  }
+}
+</style>
+</head>
+<body>
+
+<a class="back-link" href="../index.html">&larr; Back to demos</a>
+<h1>Acoustic Point Sources</h1>
+<p class="subtitle">
+  Interactive 2D visualization of monopole, dipole, and Green's function acoustic radiation.
+</p>
+
+<div class="app-grid">
+  <!-- Main canvas -->
+  <div class="main-panel">
+    <div class="canvas-container">
+      <canvas id="fieldCanvas" width="500" height="500"></canvas>
+      <div class="source-label" id="sourceLabel">Monopole &middot; Harmonic</div>
+      <div class="split-label split-label-left" id="splitLeft" style="display:none;">Compressible</div>
+      <div class="split-label split-label-right" id="splitRight" style="display:none;">Incompressible</div>
+    </div>
+    <div class="radial-container">
+      <canvas id="radialCanvas" width="500" height="150"></canvas>
+    </div>
+  </div>
+
+  <!-- Control panel -->
+  <div class="control-panel">
+    <!-- Directivity -->
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">Directivity</div>
+      <div class="directivity-container">
+        <canvas id="directivityCanvas" width="180" height="180"></canvas>
+      </div>
+    </div>
+
+    <!-- Source type -->
+    <div class="ctrl-section">
+      <div class="control-group">
+        <label>Source type</label>
+        <div class="seg-bar" id="sourceTypeBar">
+          <button class="active" data-val="monopole">Monopole</button>
+          <button data-val="dipole">Dipole</button>
+          <button data-val="twoMono">Two Mono.</button>
+          <button data-val="green">Green's fn</button>
+        </div>
+      </div>
+
+      <div class="control-group" id="waveformSection">
+        <label>Waveform</label>
+        <div class="seg-bar" id="waveformBar">
+          <button class="active" data-val="harmonic">Harmonic</button>
+          <button data-val="gaussian">Pulse</button>
+          <button data-val="repeated">Repeated</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Display</label>
+        <div class="seg-bar" id="displayBar">
+          <button class="active" data-val="pressure">Pressure</button>
+          <button data-val="amplitude">Amplitude</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frequency & parameters -->
+    <div class="ctrl-section">
+      <div class="control-group" id="freqSection">
+        <label>Frequency</label>
+        <div class="slider-row">
+          <input type="range" id="freqSlider" min="0" max="1" step="0.001" value="0.5">
+          <span class="slider-val" id="freqVal">500 Hz</span>
+        </div>
+        <div class="slider-hint" id="freqHint">&lambda; = 0.69 m</div>
+      </div>
+
+      <div class="control-group" id="sepSection" style="display:none;">
+        <label>Separation h</label>
+        <div class="slider-row">
+          <input type="range" id="sepSlider" min="0.01" max="2" step="0.01" value="0.5">
+          <span class="slider-val" id="sepVal">0.50 &lambda;</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Speed</label>
+        <div class="slider-row">
+          <input type="range" id="speedSlider" min="0.1" max="2.0" step="0.05" value="1.0">
+          <span class="slider-val" id="speedVal">1.0&times;</span>
+        </div>
+      </div>
+
+      <div class="control-group" id="incompSection">
+        <div class="check-group">
+          <label><input type="checkbox" id="incompCheck"> Show incompressible limit</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playback -->
+    <div class="ctrl-section">
+      <div class="playback-row">
+        <button class="play-btn" id="playBtn">Pause</button>
+        <button class="action-btn" id="stepBtn">Step</button>
+        <button class="action-btn" id="resetBtn">Reset</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- About section -->
+<details>
+  <summary>About the physics model</summary>
+  <div class="info-content">
+    <p>
+      This visualization shows the acoustic pressure field radiated by elementary point sources
+      in 2D cross-section. These point-source solutions are fundamental building blocks for more
+      complex acoustic radiation problems: any vibrating object can be represented (via boundary
+      integral methods) as a distribution of point sources on its surface.
+    </p>
+
+    <h4>Monopole</h4>
+    <p>
+      A pulsating volume source (imagine a tiny sphere whose radius oscillates). It radiates
+      spherically symmetric waves whose amplitude decays as 1/<span class="eq-inline">r</span>.
+      The radiated pressure is proportional to the time derivative of the volume flow rate;
+      a source with constant volume flux produces no sound. For a harmonic source
+      <span class="eq-inline">q(t) = Q</span><sub>0</sub> sin(<span class="eq-inline">&omega;t</span>):
+    </p>
+    <span class="eq">p(x, t) = &rho;<sub>0</sub> Q<sub>0</sub> &omega; cos(&omega;t &minus; kr) / (4&pi;r)</span>
+    <p>
+      where <span class="eq-inline">k = &omega;/c</span> is the wavenumber and
+      <span class="eq-inline">r</span> is distance from the source.
+    </p>
+
+    <h4>Dipole</h4>
+    <p>
+      The limiting case of two equal-and-opposite monopoles at vanishing separation. It arises
+      physically from an oscillating rigid body (no net volume change, just displacement of fluid).
+      The radiation pattern has a cos(<span class="eq-inline">&theta;</span>) directivity
+      ("figure-8"): maximum along the oscillation axis, zero in the equatorial plane.
+    </p>
+    <p>
+      The dipole field has a <strong>near-field</strong> region (within a wavelength of the source)
+      where the pressure decays as 1/<span class="eq-inline">r</span><sup>2</sup> and oscillates
+      nearly in phase with the source, and a <strong>far-field</strong> region (many wavelengths away)
+      where it decays as 1/<span class="eq-inline">r</span> and carries propagating wave energy.
+      In the far field, the radiated pressure depends on the jerk (time derivative of acceleration)
+      of the source.
+    </p>
+    <span class="eq">p = &minus;&rho;<sub>0</sub> cos&theta; / (4&pi;) [ D''(&tau;)/(cr) + D'(&tau;)/r<sup>2</sup> ]</span>
+    <p>where <span class="eq-inline">&tau; = t &minus; r/c</span> is the retarded time.</p>
+
+    <h4>Green&rsquo;s Function</h4>
+    <p>
+      The response to an impulsive point source: a delta function in space and time. The solution
+      is a spherical shell expanding at the speed of sound, with 1/<span class="eq-inline">r</span>
+      amplitude decay. Any acoustic field can be constructed by superposing Green&rsquo;s functions
+      weighted by the source distribution&mdash;an idea central to boundary element methods for
+      sound computation.
+    </p>
+    <span class="eq">G(x, t) = &delta;(t &minus; r/c) / (4&pi;r)</span>
+    <p>Visualized here as a narrow Gaussian pulse for clarity.</p>
+
+    <h4>Two Monopoles</h4>
+    <p>
+      Two discrete monopoles of opposite sign, separated by a controllable distance
+      <span class="eq-inline">h</span>. As <span class="eq-inline">h</span> decreases
+      (becoming small relative to the wavelength), the interference pattern converges to the
+      smooth dipole pattern, illustrating how the point-dipole solution arises as a limiting
+      process.
+    </p>
+
+    <p style="margin-top:0.75rem;">
+      The underlying theory follows Howe (2003), Chapters 1.4&ndash;1.7.
+    </p>
+
+    <h4>References</h4>
+    <ol>
+      <li class="ref">
+        Howe, M. S. (2003). <em>Theory of Vortex Sound.</em> Cambridge University Press.
+        Sections 1.4&ndash;1.7.
+        <a href="https://doi.org/10.1017/CBO9780511755491">doi:10.1017/CBO9780511755491</a>
+      </li>
+      <li class="ref">
+        Howe, M. S. (1998). <em>Acoustics of Fluid-Structure Interactions.</em> Cambridge University Press.
+        <a href="https://doi.org/10.1017/CBO9780511662898">doi:10.1017/CBO9780511662898</a>
+      </li>
+      <li class="ref">
+        Pierce, A. D. (2019). <em>Acoustics: An Introduction to Its Physical Principles and Applications.</em>
+        3rd ed., Springer. Chapter 4.
+        <a href="https://doi.org/10.1007/978-3-030-11214-1">doi:10.1007/978-3-030-11214-1</a>
+      </li>
+      <li class="ref">
+        University of Southampton, ISVR &mdash; "Point Sources &amp; Inverse Square Law" interactive illustrations.
+        <a href="https://blog.soton.ac.uk/soundwaves/wave-basics/point-sources-inverse-square-law/">soton.ac.uk/soundwaves</a>
+      </li>
+    </ol>
+  </div>
+</details>
+
+<footer style="max-width:1200px;margin:2rem auto 0;padding:1rem 0;border-top:1px solid #ddd;font-size:0.75rem;color:#888;text-align:center;">
+  AI-assisted demo by Doug James using Claude Code. Provided "as is" for educational purposes; no warranty.
+  <a href="https://github.com/dougjam/demos/blob/master/DEMO_DISCLAIMER.md" style="color:#888;">Full disclaimer</a>.
+</footer>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+var S = {
+  c: 343,
+  rho0: 1.204,
+  sourceType: 'monopole',
+  waveform: 'harmonic',
+  displayMode: 'pressure',
+  freq: 500,
+  omega: 0,
+  k: 0,
+  lambda: 0,
+  sepH: 0.5,      // in lambda units
+  speed: 1.0,
+  showIncomp: false,
+  N: 500,
+  domainHalf: 1,   // meters
+  normR: 0.4,      // fixed normalization reference radius (meters)
+  dx: 0,
+  t: 0,
+  pulseOffset: 0,  // time offset so pulses start clean
+  paused: false,
+  needsRedraw: true,
+  generation: 0,
+  smoothPRange: 0.5  // smoothed pressure colormap range (fast attack, slow decay)
+};
+
+// ============================================================
+// DOM references
+// ============================================================
+var fieldCanvas = document.getElementById('fieldCanvas');
+var fieldCtx = fieldCanvas.getContext('2d');
+var dirCanvas = document.getElementById('directivityCanvas');
+var dirCtx = dirCanvas.getContext('2d');
+var radCanvas = document.getElementById('radialCanvas');
+var radCtx = radCanvas.getContext('2d');
+
+var sourceLabel = document.getElementById('sourceLabel');
+var splitLeft = document.getElementById('splitLeft');
+var splitRight = document.getElementById('splitRight');
+var freqSlider = document.getElementById('freqSlider');
+var freqVal = document.getElementById('freqVal');
+var freqHint = document.getElementById('freqHint');
+var sepSlider = document.getElementById('sepSlider');
+var sepVal = document.getElementById('sepVal');
+var speedSlider = document.getElementById('speedSlider');
+var speedValEl = document.getElementById('speedVal');
+var playBtn = document.getElementById('playBtn');
+var stepBtn = document.getElementById('stepBtn');
+var resetBtn = document.getElementById('resetBtn');
+var incompCheck = document.getElementById('incompCheck');
+
+// ============================================================
+// Typed arrays (allocated in precompute)
+// ============================================================
+var rArr, cosThetaArr, r1Arr, r2Arr;
+var pressureBuf, ampBuf;
+var imageData, imgData;
+
+// ============================================================
+// Colormap LUTs (512 entries)
+// ============================================================
+var cmapPR = new Uint8Array(512);
+var cmapPG = new Uint8Array(512);
+var cmapPB = new Uint8Array(512);
+var cmapAR = new Uint8Array(512);
+var cmapAG = new Uint8Array(512);
+var cmapAB = new Uint8Array(512);
+
+function buildColormaps() {
+  // Diverging: blue (#3b82f6) -> white -> red (#ef4444)
+  for (var i = 0; i < 512; i++) {
+    var t = i / 511; // 0 to 1
+    var r, g, b;
+    if (t < 0.5) {
+      // blue to white
+      var s = t * 2; // 0 to 1
+      r = Math.round(59 + (255 - 59) * s);
+      g = Math.round(130 + (255 - 130) * s);
+      b = Math.round(246 + (255 - 246) * s);
+    } else {
+      // white to red
+      var s = (t - 0.5) * 2; // 0 to 1
+      r = Math.round(255 + (239 - 255) * s);
+      g = Math.round(255 + (68 - 255) * s);
+      b = Math.round(255 + (68 - 255) * s);
+    }
+    cmapPR[i] = r;
+    cmapPG[i] = g;
+    cmapPB[i] = b;
+  }
+
+  // Sequential amplitude colormap: inferno (perceptually uniform).
+  // Control points from the matplotlib inferno colormap.
+  var infernoStops = [
+    [0.00,   0,   0,   4],
+    [0.13,  40,  11,  84],
+    [0.25, 101,  21, 110],
+    [0.38, 159,  42,  99],
+    [0.50, 212,  72,  66],
+    [0.63, 245, 125,  21],
+    [0.75, 250, 176,   4],
+    [0.88, 237, 229,  83],
+    [1.00, 252, 255, 164]
+  ];
+  for (var i = 0; i < 512; i++) {
+    var t = i / 511;
+    // Find the two surrounding stops
+    var lo = 0, hi = 1;
+    for (var j = 1; j < infernoStops.length; j++) {
+      if (infernoStops[j][0] >= t) { hi = j; lo = j - 1; break; }
+    }
+    var s = (t - infernoStops[lo][0]) / (infernoStops[hi][0] - infernoStops[lo][0]);
+    cmapAR[i] = Math.round(infernoStops[lo][1] + (infernoStops[hi][1] - infernoStops[lo][1]) * s);
+    cmapAG[i] = Math.round(infernoStops[lo][2] + (infernoStops[hi][2] - infernoStops[lo][2]) * s);
+    cmapAB[i] = Math.round(infernoStops[lo][3] + (infernoStops[hi][3] - infernoStops[lo][3]) * s);
+  }
+}
+buildColormaps();
+
+// ============================================================
+// Precomputation
+// ============================================================
+function precompute() {
+  var N = S.N;
+  var NN = N * N;
+
+  S.omega = 2 * Math.PI * S.freq;
+  S.k = S.omega / S.c;
+  S.lambda = S.c / S.freq;
+
+  if (S.sourceType === 'green') {
+    S.domainHalf = 2.0;
+  } else {
+    // Fixed physical domain so frequency changes are visible as
+    // different wavefront spacings rather than identical rescaled patterns
+    S.domainHalf = 1.5;
+  }
+  S.dx = 2 * S.domainHalf / N;
+  var rMin = S.dx;
+
+  // Pulse offset: shift Gaussian center forward so field starts clean at t=0
+  if (S.waveform === 'gaussian' || S.waveform === 'repeated') {
+    var sig = 2 / S.omega;
+    S.pulseOffset = 5 * sig;
+  } else {
+    S.pulseOffset = 0;
+  }
+
+  // Allocate arrays
+  if (!rArr || rArr.length !== NN) {
+    rArr = new Float32Array(NN);
+    cosThetaArr = new Float32Array(NN);
+    r1Arr = new Float32Array(NN);
+    r2Arr = new Float32Array(NN);
+    pressureBuf = new Float32Array(NN);
+    ampBuf = new Float32Array(NN);
+    imageData = fieldCtx.createImageData(N, N);
+    imgData = imageData.data;
+  }
+
+  var halfH = S.sepH * S.lambda * 0.5;
+
+  for (var j = 0; j < N; j++) {
+    var x2 = (j - N * 0.5 + 0.5) * S.dx;
+    for (var i = 0; i < N; i++) {
+      var idx = j * N + i;
+      var x1 = (i - N * 0.5 + 0.5) * S.dx;
+      var r = Math.sqrt(x1 * x1 + x2 * x2);
+      if (r < rMin) r = rMin;
+      rArr[idx] = r;
+      cosThetaArr[idx] = x1 / r;
+
+      // Two-monopole source positions
+      var dx1 = x1 - halfH;
+      var dx2 = x1 + halfH;
+      var rr1 = Math.sqrt(dx1 * dx1 + x2 * x2);
+      var rr2 = Math.sqrt(dx2 * dx2 + x2 * x2);
+      if (rr1 < rMin) rr1 = rMin;
+      if (rr2 < rMin) rr2 = rMin;
+      r1Arr[idx] = rr1;
+      r2Arr[idx] = rr2;
+    }
+  }
+
+  // Reset buffers
+  S.generation++;
+  S.smoothPRange = 0.5;
+  for (var i = 0; i < NN; i++) ampBuf[i] = 0;
+
+  S.needsRedraw = true;
+  renderDirectivity();
+}
+
+// ============================================================
+// Pressure evaluation at a single point
+// ============================================================
+function evalPressure(r, cosTheta, t) {
+  var wt = S.omega * t;
+  var k = S.k;
+  var lam = S.lambda;
+
+  if (S.sourceType === 'monopole') {
+    return evalMonopole(r, t, wt, k, lam);
+  } else if (S.sourceType === 'dipole') {
+    return evalDipole(r, cosTheta, t, wt, k, lam);
+  } else if (S.sourceType === 'green') {
+    return evalGreen(r, t);
+  }
+  return 0;
+}
+
+function evalMonopole(r, t, wt, k, lam) {
+  var nR = S.normR;
+  if (S.waveform === 'harmonic') {
+    return (nR / r) * Math.cos(wt - k * r);
+  }
+  var tau = t - r / S.c - S.pulseOffset;
+  var sig = 2 / S.omega;
+  var sig2 = sig * sig;
+  if (S.waveform === 'gaussian') {
+    var g = -(tau / sig2) * Math.exp(-tau * tau / (2 * sig2));
+    return (nR / r) * g * sig;
+  }
+  // repeated
+  var Trep = 4 / S.freq;
+  var tauW = ((tau % Trep) + Trep) % Trep - Trep * 0.5;
+  var g = -(tauW / sig2) * Math.exp(-tauW * tauW / (2 * sig2));
+  return (nR / r) * g * sig;
+}
+
+function evalDipole(r, cosTheta, t, wt, k, lam) {
+  // Normalization: reference amplitude at r=normR, theta=0
+  var nR = S.normR;
+  var Aref = Math.sqrt((k / nR) * (k / nR) + 1 / (nR * nR * nR * nR));
+
+  if (S.waveform === 'harmonic') {
+    var phase = wt - k * r;
+    var sp = Math.sin(phase);
+    var cp = Math.cos(phase);
+    var p = cosTheta * ((k / r) * sp - cp / (r * r));
+    return p / Aref;
+  }
+  var tau = t - r / S.c - S.pulseOffset;
+  var sig = 2 / S.omega;
+  var sig2 = sig * sig;
+  var sig4 = sig2 * sig2;
+  var tauEff = tau;
+  if (S.waveform === 'repeated') {
+    var Trep = 4 / S.freq;
+    tauEff = ((tau % Trep) + Trep) % Trep - Trep * 0.5;
+  }
+  var expVal = Math.exp(-tauEff * tauEff / (2 * sig2));
+  var f1 = -(tauEff / sig2) * expVal;          // D'
+  var f2 = (tauEff * tauEff / sig4 - 1 / sig2) * expVal; // D''
+  var p = -cosTheta * (f2 / (S.c * r) + f1 / (r * r));
+  // Normalize by analytical peak at (r=normR, theta=0, tau=0):
+  // peak = 1/(sig^2 * c * normR)
+  var pulseNorm = 1 / (sig2 * S.c * nR);
+  return p / pulseNorm;
+}
+
+function evalGreen(r, t) {
+  var ct = S.c * t;
+  var sigG = 0.015;
+  var diff = r - ct;
+  // Gaussian-smoothed delta shell with natural 1/r decay (no brightness compensation)
+  return Math.exp(-diff * diff / (2 * sigG * sigG)) / r;
+}
+
+// ============================================================
+// Compute full pressure field
+// ============================================================
+function computePressure() {
+  var N = S.N;
+  var NN = N * N;
+  var t = S.t;
+  var wt = S.omega * t;
+  var k = S.k;
+  var lam = S.lambda;
+
+  if (S.sourceType === 'monopole') {
+    computeMonopoleField(NN, t, wt, k, lam);
+  } else if (S.sourceType === 'dipole') {
+    computeDipoleField(NN, t, wt, k, lam);
+  } else if (S.sourceType === 'twoMono') {
+    computeTwoMonoField(NN, t, wt, k, lam);
+  } else if (S.sourceType === 'green') {
+    computeGreenField(NN, t);
+  }
+}
+
+function computeMonopoleField(NN, t, wt, k, lam) {
+  var nR = S.normR;
+  if (S.waveform === 'harmonic') {
+    for (var i = 0; i < NN; i++) {
+      pressureBuf[i] = (nR / rArr[i]) * Math.cos(wt - k * rArr[i]);
+    }
+  } else {
+    var sig = 2 / S.omega;
+    var sig2 = sig * sig;
+    var Trep = 4 / S.freq;
+    var pOff = S.pulseOffset;
+    for (var i = 0; i < NN; i++) {
+      var tau = t - rArr[i] / S.c - pOff;
+      if (S.waveform === 'repeated') {
+        tau = ((tau % Trep) + Trep) % Trep - Trep * 0.5;
+      }
+      var g = -(tau / sig2) * Math.exp(-tau * tau / (2 * sig2));
+      pressureBuf[i] = (nR / rArr[i]) * g * sig;
+    }
+  }
+
+  // Incompressible overlay: overwrite right half
+  if (S.showIncomp) {
+    var N = S.N;
+    var midCol = Math.floor(N / 2);
+    if (S.waveform === 'harmonic') {
+      var cosWt = Math.cos(wt);
+      for (var j = 0; j < N; j++) {
+        for (var ic = midCol; ic < N; ic++) {
+          var idx = j * N + ic;
+          pressureBuf[idx] = (nR / rArr[idx]) * cosWt;
+        }
+      }
+    } else {
+      // For pulse waveforms in incompressible limit: q'(t)/r (no retardation)
+      var sig = 2 / S.omega;
+      var sig2 = sig * sig;
+      var tEff = t - S.pulseOffset;
+      if (S.waveform === 'repeated') {
+        var Trep = 4 / S.freq;
+        tEff = ((tEff % Trep) + Trep) % Trep - Trep * 0.5;
+      }
+      var g = -(tEff / sig2) * Math.exp(-tEff * tEff / (2 * sig2));
+      for (var j = 0; j < N; j++) {
+        for (var ic = midCol; ic < N; ic++) {
+          var idx = j * N + ic;
+          pressureBuf[idx] = (nR / rArr[idx]) * g * sig;
+        }
+      }
+    }
+  }
+}
+
+function computeDipoleField(NN, t, wt, k, lam) {
+  var nR = S.normR;
+  var Aref = Math.sqrt((k / nR) * (k / nR) + 1 / (nR * nR * nR * nR));
+
+  if (S.waveform === 'harmonic') {
+    for (var i = 0; i < NN; i++) {
+      var r = rArr[i];
+      var phase = wt - k * r;
+      var p = cosThetaArr[i] * ((k / r) * Math.sin(phase) - Math.cos(phase) / (r * r));
+      pressureBuf[i] = p / Aref;
+    }
+  } else {
+    var sig = 2 / S.omega;
+    var sig2 = sig * sig;
+    var sig4 = sig2 * sig2;
+    var Trep = 4 / S.freq;
+    var pOff = S.pulseOffset;
+    var pulseNorm = 1 / (sig2 * S.c * nR);
+    for (var i = 0; i < NN; i++) {
+      var r = rArr[i];
+      var tau = t - r / S.c - pOff;
+      if (S.waveform === 'repeated') {
+        tau = ((tau % Trep) + Trep) % Trep - Trep * 0.5;
+      }
+      var expVal = Math.exp(-tau * tau / (2 * sig2));
+      var f1 = -(tau / sig2) * expVal;
+      var f2 = (tau * tau / sig4 - 1 / sig2) * expVal;
+      var p = -cosThetaArr[i] * (f2 / (S.c * r) + f1 / (r * r));
+      pressureBuf[i] = p / pulseNorm;
+    }
+  }
+}
+
+function computeTwoMonoField(NN, t, wt, k, lam) {
+  var nR = S.normR;
+  var kh = k * S.sepH * lam;
+  var normFactor = 2 * Math.abs(Math.sin(kh * 0.5));
+  if (normFactor < 0.001) normFactor = 0.001;
+
+  if (S.waveform === 'harmonic') {
+    for (var i = 0; i < NN; i++) {
+      var p1 = (nR / r1Arr[i]) * Math.cos(wt - k * r1Arr[i]);
+      var p2 = (nR / r2Arr[i]) * Math.cos(wt - k * r2Arr[i]);
+      pressureBuf[i] = (p1 - p2) / normFactor;
+    }
+  } else {
+    var sig = 2 / S.omega;
+    var sig2 = sig * sig;
+    var Trep = 4 / S.freq;
+    var pOff = S.pulseOffset;
+    for (var i = 0; i < NN; i++) {
+      var tau1 = t - r1Arr[i] / S.c - pOff;
+      var tau2 = t - r2Arr[i] / S.c - pOff;
+      if (S.waveform === 'repeated') {
+        tau1 = ((tau1 % Trep) + Trep) % Trep - Trep * 0.5;
+        tau2 = ((tau2 % Trep) + Trep) % Trep - Trep * 0.5;
+      }
+      var g1 = -(tau1 / sig2) * Math.exp(-tau1 * tau1 / (2 * sig2));
+      var g2 = -(tau2 / sig2) * Math.exp(-tau2 * tau2 / (2 * sig2));
+      var p1 = (nR / r1Arr[i]) * g1 * sig;
+      var p2 = (nR / r2Arr[i]) * g2 * sig;
+      pressureBuf[i] = (p1 - p2) / normFactor;
+    }
+  }
+}
+
+function computeGreenField(NN, t) {
+  var ct = S.c * t;
+  var sigG = 0.015;
+  var twoSig2 = 2 * sigG * sigG;
+  for (var i = 0; i < NN; i++) {
+    var diff = rArr[i] - ct;
+    // Gaussian-smoothed delta shell with natural 1/r amplitude decay
+    pressureBuf[i] = Math.exp(-diff * diff / twoSig2) / rArr[i];
+  }
+}
+
+// ============================================================
+// Analytical amplitude envelope (time-independent)
+// ============================================================
+function computeAmplitudeEnvelope() {
+  var NN = S.N * S.N;
+  var nR = S.normR;
+  var k = S.k;
+
+  if (S.sourceType === 'monopole') {
+    // |p_max| = normR / r  (spherically symmetric 1/r decay)
+    for (var i = 0; i < NN; i++) {
+      ampBuf[i] = nR / rArr[i];
+    }
+    // Incompressible overlay: same envelope (no retardation changes the peak)
+    // so no special handling needed
+  } else if (S.sourceType === 'dipole') {
+    // |p_max| = |cos(theta)| * sqrt((k/r)^2 + 1/r^4) / Aref
+    // This combines the far-field (k/r) and near-field (1/r^2) terms
+    var Aref = Math.sqrt((k / nR) * (k / nR) + 1 / (nR * nR * nR * nR));
+    for (var i = 0; i < NN; i++) {
+      var r = rArr[i];
+      var ct = Math.abs(cosThetaArr[i]);
+      var farTerm = k / r;
+      var nearTerm = 1 / (r * r);
+      ampBuf[i] = ct * Math.sqrt(farTerm * farTerm + nearTerm * nearTerm) / Aref;
+    }
+  } else if (S.sourceType === 'twoMono') {
+    // Two opposite monopoles: amplitude of (nR/r1)*e^{-ikr1} - (nR/r2)*e^{-ikr2}
+    // |p_max| = sqrt((nR/r1)^2 + (nR/r2)^2 - 2*(nR/r1)*(nR/r2)*cos(k*(r1-r2)))
+    var kh = k * S.sepH * S.lambda;
+    var normFactor = 2 * Math.abs(Math.sin(kh * 0.5));
+    if (normFactor < 0.001) normFactor = 0.001;
+    for (var i = 0; i < NN; i++) {
+      var a1 = nR / r1Arr[i];
+      var a2 = nR / r2Arr[i];
+      var dPhase = k * (r1Arr[i] - r2Arr[i]);
+      // |A*e^{i*phi1} - B*e^{i*phi2}| = sqrt(A^2 + B^2 - 2*A*B*cos(phi1-phi2))
+      ampBuf[i] = Math.sqrt(a1 * a1 + a2 * a2 - 2 * a1 * a2 * Math.cos(dPhase)) / normFactor;
+    }
+  }
+}
+
+// ============================================================
+// Map pressure to pixels
+// ============================================================
+function mapToPixels() {
+  var NN = S.N * S.N;
+  var cmR, cmG, cmB;
+
+  if (S.displayMode === 'pressure') {
+    cmR = cmapPR; cmG = cmapPG; cmB = cmapPB;
+    // Adaptive colormap range: 98th percentile of |p|, smoothed over time.
+    // Fast attack (instantly accommodate new peaks) but slow decay (~1s)
+    // to prevent flicker on pulsed waveforms.
+    var step = 50;
+    var nSamp = Math.ceil(NN / step);
+    var samples = new Float32Array(nSamp);
+    for (var i = 0, si = 0; i < NN && si < nSamp; i += step, si++) {
+      samples[si] = Math.abs(pressureBuf[i]);
+    }
+    samples.sort();
+    var p98 = samples[Math.floor(nSamp * 0.98)] || 0.5;
+    // Fast attack, slow decay
+    if (p98 >= S.smoothPRange) {
+      S.smoothPRange = p98; // instant jump up
+    } else {
+      S.smoothPRange *= 0.98; // ~1s decay at 60fps
+      if (S.smoothPRange < p98) S.smoothPRange = p98;
+    }
+    var pRange = Math.max(S.smoothPRange, 0.1);
+    for (var i = 0; i < NN; i++) {
+      var p = pressureBuf[i] / pRange;
+      if (p < -1) p = -1;
+      if (p > 1) p = 1;
+      var ci = ((p + 1) * 255.5) | 0;
+      if (ci > 511) ci = 511;
+      var off = i << 2;
+      imgData[off]     = cmR[ci];
+      imgData[off + 1] = cmG[ci];
+      imgData[off + 2] = cmB[ci];
+      imgData[off + 3] = 255;
+    }
+  } else {
+    // Amplitude mode: display the peak-pressure envelope |p_max(x)|.
+    // For harmonic & pulse sources this is time-independent and computed
+    // analytically from the geometric spreading + directivity.
+    // For Green's fn (transient ring), show instantaneous |p|.
+    cmR = cmapAR; cmG = cmapAG; cmB = cmapAB;
+
+    if (S.sourceType === 'green') {
+      // Green's fn: instantaneous |p| — the ring is transient
+      for (var i = 0; i < NN; i++) {
+        ampBuf[i] = Math.abs(pressureBuf[i]);
+      }
+    } else {
+      // Analytical amplitude envelope (time-independent)
+      computeAmplitudeEnvelope();
+    }
+    // Adaptive normalization: use 98th percentile to avoid
+    // the near-source 1/r singularity dominating the colormap
+    var aStep = 50;
+    var aSamp = Math.ceil(NN / aStep);
+    var aSamples = new Float32Array(aSamp);
+    for (var i = 0, si = 0; i < NN && si < aSamp; i += aStep, si++) {
+      aSamples[si] = ampBuf[i];
+    }
+    aSamples.sort();
+    var aMax = aSamples[Math.floor(aSamp * 0.98)] || 1;
+    if (aMax < 0.001) aMax = 0.001;
+    for (var i = 0; i < NN; i++) {
+      var a = ampBuf[i] / aMax;
+      if (a > 1) a = 1;
+      var ci = (a * 511) | 0;
+      var off = i << 2;
+      imgData[off]     = cmR[ci];
+      imgData[off + 1] = cmG[ci];
+      imgData[off + 2] = cmB[ci];
+      imgData[off + 3] = 255;
+    }
+  }
+}
+
+// ============================================================
+// Draw source marker and split line
+// ============================================================
+function drawOverlay() {
+  var cx = fieldCanvas.width * 0.5;
+  var cy = fieldCanvas.height * 0.5;
+
+  if (S.sourceType === 'twoMono') {
+    var halfH = S.sepH * S.lambda * 0.5;
+    var px = halfH / S.dx;
+    // Source 1 (positive) at +h/2
+    fieldCtx.beginPath();
+    fieldCtx.arc(cx + px, cy, 4, 0, 2 * Math.PI);
+    fieldCtx.fillStyle = '#4ade80';
+    fieldCtx.fill();
+    // Source 2 (negative) at -h/2
+    fieldCtx.beginPath();
+    fieldCtx.arc(cx - px, cy, 4, 0, 2 * Math.PI);
+    fieldCtx.fillStyle = '#f87171';
+    fieldCtx.fill();
+  } else {
+    fieldCtx.beginPath();
+    fieldCtx.arc(cx, cy, 4, 0, 2 * Math.PI);
+    fieldCtx.fillStyle = '#4ade80';
+    fieldCtx.fill();
+  }
+
+  // Incompressible split line
+  if (S.showIncomp && S.sourceType === 'monopole') {
+    fieldCtx.beginPath();
+    fieldCtx.moveTo(cx, 0);
+    fieldCtx.lineTo(cx, fieldCanvas.height);
+    fieldCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+    fieldCtx.lineWidth = 1;
+    fieldCtx.setLineDash([4, 4]);
+    fieldCtx.stroke();
+    fieldCtx.setLineDash([]);
+  }
+}
+
+// ============================================================
+// Radial profile
+// ============================================================
+function renderRadialProfile() {
+  // Use CSS-pixel dimensions (not backing pixels) because the context
+  // is already scaled by devicePixelRatio for sharp rendering.
+  var dpr = window.devicePixelRatio || 1;
+  var W = radCanvas.width / dpr;
+  var H = radCanvas.height / dpr;
+  var ctx = radCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  // Zero horizontal margins so the plot area maps [-domainHalf, +domainHalf]
+  // across the full canvas width, exactly matching the 2D field canvas above.
+  var marginL = 0, marginR = 0, marginT = 10, marginB = 18;
+  var plotW = W - marginL - marginR;
+  var plotH = H - marginT - marginB;
+  var dh = S.domainHalf;
+  var yRange = 1.8;
+  var nR = S.normR;
+
+  // Map physical x-coordinate to pixel, matching the 2D canvas mapping
+  function xToP(x1) { return marginL + ((x1 + dh) / (2 * dh)) * plotW; }
+  function pToY(p) { return marginT + plotH * 0.5 * (1 - p / yRange); }
+
+  // Background axes
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  // Horizontal zero-pressure line
+  var yZero = pToY(0);
+  ctx.beginPath();
+  ctx.moveTo(marginL, yZero);
+  ctx.lineTo(marginL + plotW, yZero);
+  ctx.stroke();
+  // Vertical center line (x=0, source location)
+  var xCenter = xToP(0);
+  ctx.beginPath();
+  ctx.moveTo(xCenter, marginT);
+  ctx.lineTo(xCenter, marginT + plotH);
+  ctx.stroke();
+
+  // 1/r envelope (dashed), symmetric about origin
+  ctx.strokeStyle = 'rgba(100,100,100,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  var nSamples = 600;
+  for (var sign = -1; sign <= 1; sign += 2) {
+    // Positive envelope
+    ctx.beginPath();
+    for (var i = 1; i < nSamples; i++) {
+      var r = (i / nSamples) * dh;
+      var env = nR / r;
+      if (env > yRange) env = yRange;
+      var px = xToP(sign * r);
+      var py = pToY(env);
+      if (i === 1) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    // Negative envelope
+    ctx.beginPath();
+    for (var i = 1; i < nSamples; i++) {
+      var r = (i / nSamples) * dh;
+      var env = -(nR / r);
+      if (env < -yRange) env = -yRange;
+      var px = xToP(sign * r);
+      var py = pToY(env);
+      if (i === 1) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  // 1/r^2 envelope for dipole (lighter)
+  if (S.sourceType === 'dipole') {
+    ctx.strokeStyle = 'rgba(37,99,235,0.2)';
+    var Aref = Math.sqrt((S.k / nR) * (S.k / nR) + 1 / (nR * nR * nR * nR));
+    for (var sign = -1; sign <= 1; sign += 2) {
+      ctx.beginPath();
+      for (var i = 1; i < nSamples; i++) {
+        var r = (i / nSamples) * dh;
+        var env = (1 / (r * r)) / Aref;
+        if (env > yRange) env = yRange;
+        var px = xToP(sign * r);
+        var py = pToY(env);
+        if (i === 1) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      for (var i = 1; i < nSamples; i++) {
+        var r = (i / nSamples) * dh;
+        var env = -(1 / (r * r)) / Aref;
+        if (env < -yRange) env = -yRange;
+        var px = xToP(sign * r);
+        var py = pToY(env);
+        if (i === 1) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.setLineDash([]);
+
+  // Pressure curve: full y=0 slice from -domainHalf to +domainHalf.
+  // Clip against ±yRange by interpolating exact crossing points so
+  // the visible endpoints are stable (no jitter from sample spacing).
+  var totalSamples = nSamples * 2;
+  var prevX1 = 0, prevP = 0, prevInRange = false;
+
+  function samplePressure(x1) {
+    var r = Math.abs(x1);
+    if (r < S.dx) r = S.dx;
+    var cosT = x1 >= 0 ? 1 : -1;
+    if (Math.abs(x1) < S.dx) cosT = 1;
+    if (S.sourceType === 'twoMono') {
+      var halfH = S.sepH * S.lambda * 0.5;
+      var rr1 = Math.abs(x1 - halfH);
+      var rr2 = Math.abs(x1 + halfH);
+      if (rr1 < S.dx) rr1 = S.dx;
+      if (rr2 < S.dx) rr2 = S.dx;
+      var kh = S.k * S.sepH * S.lambda;
+      var normF = 2 * Math.abs(Math.sin(kh * 0.5));
+      if (normF < 0.001) normF = 0.001;
+      if (S.waveform === 'harmonic') {
+        var wt = S.omega * S.t;
+        return ((nR / rr1) * Math.cos(wt - S.k * rr1) - (nR / rr2) * Math.cos(wt - S.k * rr2)) / normF;
+      } else {
+        var sig = 2 / S.omega;
+        var sig2 = sig * sig;
+        var Trep = 4 / S.freq;
+        var pOff = S.pulseOffset;
+        var tau1 = S.t - rr1 / S.c - pOff;
+        var tau2 = S.t - rr2 / S.c - pOff;
+        if (S.waveform === 'repeated') {
+          tau1 = ((tau1 % Trep) + Trep) % Trep - Trep * 0.5;
+          tau2 = ((tau2 % Trep) + Trep) % Trep - Trep * 0.5;
+        }
+        var g1 = -(tau1 / sig2) * Math.exp(-tau1 * tau1 / (2 * sig2));
+        var g2 = -(tau2 / sig2) * Math.exp(-tau2 * tau2 / (2 * sig2));
+        return ((nR / rr1) * g1 * sig - (nR / rr2) * g2 * sig) / normF;
+      }
+    }
+    return evalPressure(r, cosT, S.t);
+  }
+
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  var started = false;
+  for (var i = 0; i <= totalSamples; i++) {
+    var x1 = -dh + (i / totalSamples) * 2 * dh;
+    var p = samplePressure(x1);
+    var inRange = (p >= -yRange && p <= yRange);
+
+    if (i > 0 && inRange !== prevInRange) {
+      // Crossing: interpolate the exact x where p hits ±yRange
+      var clipVal = prevP > 0 ? yRange : -yRange;
+      var frac = (clipVal - prevP) / (p - prevP); // 0..1
+      var clipX1 = prevX1 + frac * (x1 - prevX1);
+      var clipPx = xToP(clipX1);
+      var clipPy = pToY(clipVal);
+      if (inRange) {
+        // Entering visible range: start a new segment at the clip point
+        ctx.moveTo(clipPx, clipPy);
+        started = true;
+      } else {
+        // Leaving visible range: draw to the clip point, then end segment
+        if (started) { ctx.lineTo(clipPx, clipPy); ctx.stroke(); ctx.beginPath(); started = false; }
+      }
+    }
+
+    if (inRange) {
+      var px = xToP(x1);
+      var py = pToY(p);
+      if (!started) { ctx.moveTo(px, py); started = true; } else { ctx.lineTo(px, py); }
+    }
+
+    prevX1 = x1;
+    prevP = p;
+    prevInRange = inRange;
+  }
+  if (started) ctx.stroke();
+
+  // Y-axis label
+  ctx.save();
+  ctx.translate(12, marginT + plotH * 0.5);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#888';
+  ctx.font = '10px system-ui, sans-serif';
+  ctx.fillText('p (a.u.)', 0, 0);
+  ctx.restore();
+
+  // Envelope label
+  ctx.fillStyle = 'rgba(100,100,100,0.5)';
+  ctx.font = '9px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  var labelR = dh * 0.7;
+  var envAtLabel = nR / labelR;
+  if (envAtLabel < yRange) {
+    ctx.fillText('1/r', xToP(labelR) + 3, pToY(envAtLabel) - 4);
+  }
+}
+
+// ============================================================
+// Directivity polar plot
+// ============================================================
+function renderDirectivity() {
+  var W = dirCanvas.width;
+  var H = dirCanvas.height;
+  var ctx = dirCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  var cx = W * 0.5;
+  var cy = H * 0.5;
+  var R = Math.min(cx, cy) - 12;
+
+  // Grid circles
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 0.5;
+  for (var i = 1; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * i / 4, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+  // Grid lines
+  for (var a = 0; a < 360; a += 30) {
+    var rad = a * Math.PI / 180;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + R * Math.cos(rad), cy - R * Math.sin(rad));
+    ctx.stroke();
+  }
+
+  // Directivity pattern
+  var nPts = 360;
+  ctx.beginPath();
+  for (var i = 0; i <= nPts; i++) {
+    var theta = (i / nPts) * 2 * Math.PI;
+    var cosT = Math.cos(theta);
+    var d;
+    if (S.sourceType === 'monopole' || S.sourceType === 'green') {
+      d = 1;
+    } else if (S.sourceType === 'dipole') {
+      d = Math.abs(cosT);
+    } else {
+      // Two monopoles: |sin(k*h*cos(theta)/2)|, normalized to max=1
+      var kh = S.k * S.sepH * S.lambda;
+      d = Math.abs(Math.sin(kh * cosT * 0.5));
+      var dMax = Math.abs(Math.sin(kh * 0.5));
+      if (dMax > 0.001) d /= dMax; else d = Math.abs(cosT);
+    }
+    var px = cx + R * d * Math.cos(theta);
+    var py = cy - R * d * Math.sin(theta);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(37, 99, 235, 0.12)';
+  ctx.fill();
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#aaa';
+  ctx.font = '9px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('0\u00B0', cx + R + 8, cy + 3);
+  ctx.fillText('90\u00B0', cx, cy - R - 3);
+  ctx.fillText('180\u00B0', cx - R - 10, cy + 3);
+}
+
+// ============================================================
+// Animation loop
+// ============================================================
+var lastTime = 0;
+
+function renderFrame(now) {
+  requestAnimationFrame(renderFrame);
+
+  if (!lastTime) lastTime = now;
+  var dtMs = now - lastTime;
+  if (dtMs > 50) dtMs = 50;
+  lastTime = now;
+
+  if (!S.paused) {
+    // Scale time so one wave cycle takes ~1 second at speed=1.0.
+    // Without scaling, a 500 Hz wave completes a cycle in 2ms of sim time,
+    // causing massive temporal aliasing at 60fps (each frame jumps ~8 cycles).
+    var timeScale;
+    if (S.sourceType === 'green') {
+      // Green's fn: pulse crosses the 4m domain in ~12ms real time.
+      // Scale so the traversal takes ~4 seconds of wall time.
+      timeScale = 0.003;
+    } else {
+      // Frequency-based modes: 1 cycle per second at speed=1.0
+      timeScale = 1 / S.freq;
+    }
+    S.t += (dtMs / 1000) * S.speed * timeScale;
+    S.needsRedraw = true;
+  }
+
+  // Green's function auto-reset
+  if (S.sourceType === 'green' && S.c * S.t > S.domainHalf + 0.1) {
+    S.t = 0;
+  }
+
+  if (!S.needsRedraw) return;
+  S.needsRedraw = false;
+
+  computePressure();
+  mapToPixels();
+  fieldCtx.putImageData(imageData, 0, 0);
+  drawOverlay();
+  renderRadialProfile();
+}
+
+// ============================================================
+// Control event handlers
+// ============================================================
+function setupSegBar(id, callback) {
+  var bar = document.getElementById(id);
+  bar.addEventListener('click', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn || btn.classList.contains('active')) return;
+    bar.querySelector('.active').classList.remove('active');
+    btn.classList.add('active');
+    callback(btn.dataset.val);
+  });
+}
+
+setupSegBar('sourceTypeBar', function(val) {
+  S.sourceType = val;
+  document.getElementById('sepSection').style.display = val === 'twoMono' ? '' : 'none';
+  document.getElementById('incompSection').style.display = val === 'monopole' ? '' : 'none';
+  document.getElementById('waveformSection').style.display = val === 'green' ? 'none' : '';
+  document.getElementById('freqSection').style.display = val === 'green' ? 'none' : '';
+
+  if (val === 'green') {
+    S.waveform = 'impulse';
+  } else if (S.waveform === 'impulse') {
+    S.waveform = 'harmonic';
+    var wBar = document.getElementById('waveformBar');
+    wBar.querySelector('.active').classList.remove('active');
+    wBar.querySelector('[data-val="harmonic"]').classList.add('active');
+  }
+
+  if (val !== 'monopole') {
+    S.showIncomp = false;
+    incompCheck.checked = false;
+  }
+  updateSplitLabels();
+  updateSourceLabel();
+  S.t = 0;
+  precompute();
+});
+
+setupSegBar('waveformBar', function(val) {
+  S.waveform = val;
+  updateSourceLabel();
+  S.t = 0;
+  precompute(); // recomputes pulseOffset for gaussian/repeated waveforms
+});
+
+setupSegBar('displayBar', function(val) {
+  S.displayMode = val;
+  if (val === 'amplitude') {
+    // Clear stale amplitude data before analytical recomputation
+    for (var i = 0; i < S.N * S.N; i++) ampBuf[i] = 0;
+  }
+  S.needsRedraw = true;
+});
+
+freqSlider.addEventListener('input', function() {
+  var t = parseFloat(this.value);
+  S.freq = 50 * Math.pow(2000 / 50, t);
+  freqVal.textContent = Math.round(S.freq) + ' Hz';
+  S.omega = 2 * Math.PI * S.freq;
+  S.k = S.omega / S.c;
+  S.lambda = S.c / S.freq;
+  freqHint.innerHTML = '&lambda; = ' + S.lambda.toFixed(2) + ' m';
+  precompute();
+});
+
+sepSlider.addEventListener('input', function() {
+  S.sepH = parseFloat(this.value);
+  sepVal.innerHTML = S.sepH.toFixed(2) + ' &lambda;';
+  precompute();
+});
+
+speedSlider.addEventListener('input', function() {
+  S.speed = parseFloat(this.value);
+  speedValEl.innerHTML = S.speed.toFixed(1) + '&times;';
+});
+
+incompCheck.addEventListener('change', function() {
+  S.showIncomp = this.checked;
+  updateSplitLabels();
+  S.needsRedraw = true;
+});
+
+playBtn.addEventListener('click', function() {
+  S.paused = !S.paused;
+  playBtn.textContent = S.paused ? 'Play' : 'Pause';
+  if (!S.paused) {
+    lastTime = 0;
+    S.needsRedraw = true;
+  }
+});
+
+stepBtn.addEventListener('click', function() {
+  S.paused = true;
+  playBtn.textContent = 'Play';
+  var timeScale = S.sourceType === 'green' ? 0.003 : 1 / S.freq;
+  S.t += (1 / 60) * S.speed * timeScale;
+  S.needsRedraw = true;
+});
+
+resetBtn.addEventListener('click', function() {
+  S.t = 0;
+  for (var i = 0; i < S.N * S.N; i++) ampBuf[i] = 0;
+  S.needsRedraw = true;
+});
+
+function updateSourceLabel() {
+  var labels = { monopole: 'Monopole', dipole: 'Dipole', twoMono: 'Two Monopoles', green: "Green's Function" };
+  var wLabels = { harmonic: 'Harmonic', gaussian: 'Pulse', repeated: 'Repeated', impulse: 'Impulse' };
+  sourceLabel.textContent = labels[S.sourceType] + ' \u00B7 ' + (wLabels[S.waveform] || '');
+}
+
+function updateSplitLabels() {
+  var show = S.showIncomp && S.sourceType === 'monopole';
+  splitLeft.style.display = show ? '' : 'none';
+  splitRight.style.display = show ? '' : 'none';
+}
+
+// ============================================================
+// Init
+// ============================================================
+function init() {
+  // Set initial frequency display
+  freqVal.textContent = Math.round(S.freq) + ' Hz';
+  S.omega = 2 * Math.PI * S.freq;
+  S.k = S.omega / S.c;
+  S.lambda = S.c / S.freq;
+  freqHint.innerHTML = '&lambda; = ' + S.lambda.toFixed(2) + ' m';
+  freqSlider.value = Math.log(S.freq / 50) / Math.log(2000 / 50);
+
+  // Resize radial canvas to actual pixel width
+  var radRect = radCanvas.getBoundingClientRect();
+  radCanvas.width = Math.round(radRect.width * (window.devicePixelRatio || 1));
+  radCanvas.height = 150 * (window.devicePixelRatio || 1);
+  radCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+  precompute();
+  updateSourceLabel();
+  requestAnimationFrame(renderFrame);
+}
+
+// Handle resize for radial canvas
+var resizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function() {
+    var radRect = radCanvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    radCanvas.width = Math.round(radRect.width * dpr);
+    radCanvas.height = Math.round(150 * dpr);
+    radCtx.setTransform(1, 0, 0, 1, 0, 0);
+    radCtx.scale(dpr, dpr);
+    S.needsRedraw = true;
+  }, 100);
+});
+
+init();
+</script>
+
+</body>
+</html>

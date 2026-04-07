@@ -1,0 +1,5 @@
+# Claude Code working files
+.claude/
+
+# Development specs and research docs (local only)
+*.md

@@ -1,1 +1,12 @@
 CLAUDE.md
+.claude/
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor swap/backup files
+*.swp
+*~
+*.bak
