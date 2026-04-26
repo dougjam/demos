@@ -1,0 +1,143 @@
+<!--
+This file is a derivative work of the Matlab implementation released
+alongside Chadwick and James, "Animating Fire with Sound," SIGGRAPH 2011.
+See https://www.cs.cornell.edu/projects/Sound/fire/ for the original.
+
+Original copyright notice (preserved per BSD 2-Clause):
+
+Copyright (c) 2011, Jeffrey Chadwick
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attribution &mdash; Spectral Bandwidth Extension Demo</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.55;
+    padding: 2rem 1rem;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.7rem; margin-bottom: 0.6rem; }
+  h2 { font-size: 1.15rem; margin-top: 1.6rem; margin-bottom: 0.4rem; }
+  p, ul, blockquote { margin-bottom: 0.8rem; }
+  ul { padding-left: 1.4rem; }
+  blockquote {
+    border-left: 3px solid #2563eb;
+    padding: 0.2rem 0 0.2rem 0.9rem;
+    color: #333;
+    background: #fff;
+  }
+  a { color: #2563eb; }
+  code { background: #eef2ff; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.92em; }
+  .nav { font-size: 0.85rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<p class="nav"><a href="index.html">&larr; Back to demo</a> &middot; <a href="../index.html">Demo gallery</a></p>
+
+<h1>Attribution</h1>
+
+<h2>Original work</h2>
+<p>The spectral bandwidth extension algorithm implemented here is by:</p>
+<ul>
+  <li><strong>Jeffrey N. Chadwick</strong> (Cornell University, at the time of publication)</li>
+  <li><strong>Doug L. James</strong> (Cornell University, at the time of publication; now Stanford University)</li>
+</ul>
+<p>Published in:</p>
+<blockquote>
+  Jeffrey N. Chadwick and Doug L. James, &ldquo;Animating Fire with Sound,&rdquo;
+  ACM Transactions on Graphics (SIGGRAPH 2011), 30(4), August 2011.
+</blockquote>
+<p>
+  Project page (canonical reference):
+  <a href="https://www.cs.cornell.edu/projects/Sound/fire/">https://www.cs.cornell.edu/projects/Sound/fire/</a>
+</p>
+<p>
+  Paper PDF:
+  <a href="https://www.cs.cornell.edu/projects/Sound/fire/FireSound2011.pdf">https://www.cs.cornell.edu/projects/Sound/fire/FireSound2011.pdf</a>
+</p>
+
+<h2>Reference implementation</h2>
+<p>
+  The Python and JavaScript code in this repository is a faithful port of the
+  Matlab reference implementation released by the authors at the URL above
+  (<code>bandwidth_extension.zip</code> / <code>bandwidth_extension.tar.gz</code>).
+  All algorithm design choices, parameter defaults, and numerical details
+  follow that implementation. Differences from the released Matlab are
+  documented in <a href="docs/ALGORITHM.md"><code>docs/ALGORITHM.md</code></a>.
+</p>
+
+<h2>License</h2>
+<p>
+  The original Matlab implementation is distributed under the BSD 2-Clause
+  License (see <a href="LICENSE"><code>LICENSE</code></a>). All derivative
+  source files in this repository carry forward the original copyright notice
+  and disclaimer.
+</p>
+<p>Copyright (c) 2011, Jeffrey Chadwick. All rights reserved.</p>
+<p>
+  Additional code (the Python and JavaScript ports, the browser demo, the
+  test harness) is also licensed under the BSD 2-Clause License, with
+  attribution to the original authors required by the same terms.
+</p>
+
+<h2>Test signal data</h2>
+<p>
+  The five <code>.vector</code> files in <code>srcOrig/work/</code> are the
+  low-frequency outputs of physically-based flame simulations, produced by the
+  original authors and distributed with their code release. They are used
+  here unmodified (re-encoded as Float32 for browser delivery) for
+  educational demonstration.
+</p>
+
+<h2>Browser demo context</h2>
+<p>
+  This browser demo was developed for the course CS 448Z (Physically Based
+  Animation and Sound) at Stanford University, Spring 2026, taught by
+  Doug L. James. It is intended as an educational exploration of the
+  algorithm and is not affiliated with or endorsed by the original
+  publication beyond the use of its released code and data.
+</p>
+
+<h2>Vendored libraries</h2>
+<ul>
+  <li>
+    <code>fft.js</code> by Fedor Indutny
+    (<a href="https://github.com/indutny/fft.js">github.com/indutny/fft.js</a>),
+    MIT License. See <code>fft.js</code> at the project root for the original
+    license header.
+  </li>
+</ul>
+
+</body>
+</html>

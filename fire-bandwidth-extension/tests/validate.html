@@ -1,0 +1,242 @@
+<!--
+This file is a derivative work of the Matlab implementation released
+alongside Chadwick and James, "Animating Fire with Sound," SIGGRAPH 2011.
+See https://www.cs.cornell.edu/projects/Sound/fire/ for the original.
+
+Original copyright notice (preserved per BSD 2-Clause):
+
+Copyright (c) 2011, Jeffrey Chadwick
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JS port parity check &mdash; Spectral Bandwidth Extension</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.5;
+    padding: 1.5rem;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.4rem; }
+  p.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; }
+  th { background: #eef2ff; }
+  td.metric { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .pass { color: #117a3a; font-weight: 600; }
+  .fail { color: #b1300d; font-weight: 600; }
+  .pending { color: #777; }
+  pre {
+    background: #1f2230; color: #ddd; padding: 0.75rem 1rem;
+    border-radius: 6px; overflow-x: auto; font-size: 0.8rem;
+    white-space: pre-wrap;
+  }
+  button {
+    background: #2563eb; color: #fff; border: 0; padding: 0.55rem 1.1rem;
+    border-radius: 4px; font-size: 0.95rem; cursor: pointer;
+  }
+  button:disabled { background: #aaa; cursor: progress; }
+  a { color: #2563eb; }
+  .nav { font-size: 0.85rem; margin-bottom: 1rem; }
+  code { background: #eef2ff; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.92em; }
+</style>
+</head>
+<body>
+
+<p class="nav"><a href="../index.html">&larr; Back to demo</a></p>
+
+<h1>JS port parity check</h1>
+<p class="subtitle">
+  Cross-language verification: this page runs the JavaScript bandwidth
+  extension on the same synthetic input and phase array used by the
+  Python port, and compares the outputs. See
+  <code>SPEC_SpectralBandwidthExtension.md</code> &sect; 4.2.
+</p>
+
+<button id="runBtn">Run parity check</button>
+
+<table id="results">
+  <thead>
+    <tr><th>Test</th><th>Expected</th><th>Achieved</th><th>Status</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h2 style="font-size: 1.05rem; margin-top: 1.6rem;">Console</h2>
+<pre id="log">Click "Run parity check" to start.</pre>
+
+<script src="../fft.js?v=11"></script>
+<script src="../deterministic_rng.js?v=11"></script>
+<script src="../bandwidth_extension.js?v=11"></script>
+<script>
+'use strict';
+
+const log = document.getElementById('log');
+const tbody = document.querySelector('#results tbody');
+const runBtn = document.getElementById('runBtn');
+
+function logLine(s) {
+  log.textContent += '\n' + s;
+  log.scrollTop = log.scrollHeight;
+}
+
+function row(name, expected, achieved, pass) {
+  const tr = document.createElement('tr');
+  const cls = pass === null ? 'pending' : pass ? 'pass' : 'fail';
+  const status = pass === null ? '...' : pass ? 'PASS' : 'FAIL';
+  tr.innerHTML =
+    '<td>' + name + '</td>' +
+    '<td class="metric">' + expected + '</td>' +
+    '<td class="metric">' + achieved + '</td>' +
+    '<td class="' + cls + '">' + status + '</td>';
+  tbody.appendChild(tr);
+  return tr;
+}
+
+function maxAbs(diff) {
+  let m = 0;
+  for (let i = 0; i < diff.length; i++) {
+    const v = Math.abs(diff[i]);
+    if (v > m) m = v;
+  }
+  return m;
+}
+
+function rms(arr) {
+  let s = 0;
+  for (let i = 0; i < arr.length; i++) s += arr[i] * arr[i];
+  return Math.sqrt(s / arr.length);
+}
+
+async function run() {
+  runBtn.disabled = true;
+  log.textContent = '[loading golden...]';
+  tbody.innerHTML = '';
+
+  // 1. PCG32 byte-for-byte parity test
+  const expectedFirst8 = [
+    0.4421448060311377, 0.23623736714944243, 0.9536763080395758,
+    0.14759166655130684, 0.2652577902190387, 0.56567323487252,
+    0.3210757712367922, 0.3276327084749937
+  ];
+  const rngTest = new DeterministicRng(42);
+  let rngWorst = 0;
+  for (let i = 0; i < 8; i++) {
+    const v = rngTest.random();
+    const e = expectedFirst8[i];
+    const d = Math.abs(v - e);
+    if (d > rngWorst) rngWorst = d;
+  }
+  row('PCG32 first 8 outputs (seed=42)', '0', rngWorst.toExponential(2), rngWorst === 0);
+
+  // 1000-output determinism (just don't crash + range check)
+  const rngLong = new DeterministicRng(42);
+  let inRange = true;
+  for (let i = 0; i < 1000; i++) {
+    const v = rngLong.random();
+    if (!(v >= 0 && v < 1)) { inRange = false; break; }
+  }
+  row('PCG32 1000-output range', '[0, 1)', inRange ? 'OK' : 'OUT OF RANGE', inRange);
+
+  // 2. Load Python golden
+  const golden = await (await fetch('golden_synthetic.json')).json();
+  logLine('loaded golden_synthetic.json (' + golden.input.length + ' samples)');
+  const params = golden.params;
+
+  // 3. Lowpass parity
+  const lpJs = BandwidthExtension.lowpassFilter(
+    new Float64Array(golden.input), params.fs, params.f_cutoff
+  );
+  const lpExp = new Float64Array(golden.expected_lowpass);
+  const lpDiff = new Float64Array(lpJs.length);
+  for (let i = 0; i < lpJs.length; i++) lpDiff[i] = lpJs[i] - lpExp[i];
+  const lpPeak = maxAbs(lpDiff);
+  const lpRms = rms(lpDiff) / Math.max(1e-30, rms(lpExp));
+  row('lowpass max abs error', '< 1e-10', lpPeak.toExponential(2), lpPeak < 1e-10);
+  row('lowpass relative RMS error', '< 1e-10', lpRms.toExponential(2), lpRms < 1e-10);
+
+  // 4. Run extend_signal in JS at full NFFT
+  const t0 = performance.now();
+  const out = BandwidthExtension.extendSignal(new Float64Array(golden.input), {
+    fs: params.fs,
+    alpha: params.alpha,
+    halfWidth: params.half_width,
+    fCutoff: params.f_cutoff,
+    fitCenter: params.fit_center,
+    fitWidth: params.fit_width,
+    blendStart: params.blend_start,
+    blendEnd: params.blend_end,
+    noiseAmplitude: params.noise_amplitude,
+    phasesOverride: new Float64Array(golden.phases),
+    nfftPerWindow: null,  // Matlab-faithful for parity
+  });
+  const dt = performance.now() - t0;
+  logLine('extendSignal (NFFT=' + out.nfftFull + '): ' +
+    out.extended.length + ' samples, ' + out.betas.length + ' betas, ' +
+    dt.toFixed(1) + ' ms');
+
+  // 5. Compare betas
+  const expBetas = new Float64Array(golden.expected_betas);
+  let betaWorst = 0, betaWorstRel = 0;
+  for (let i = 0; i < out.betas.length; i++) {
+    const d = Math.abs(out.betas[i] - expBetas[i]);
+    const r = d / Math.max(1e-30, Math.abs(expBetas[i]));
+    if (d > betaWorst) betaWorst = d;
+    if (r > betaWorstRel) betaWorstRel = r;
+  }
+  row('per-window beta max abs error',  '< 1e-6',  betaWorst.toExponential(2),    betaWorst < 1e-6);
+  row('per-window beta max rel error',  '< 1e-9',  betaWorstRel.toExponential(2), betaWorstRel < 1e-9);
+
+  // 6. Compare extended waveform
+  const expExt = new Float64Array(golden.expected_extended);
+  const extDiff = new Float64Array(out.extended.length);
+  for (let i = 0; i < out.extended.length; i++) extDiff[i] = out.extended[i] - expExt[i];
+  const peakAbs = maxAbs(extDiff);
+  const peakRel = peakAbs / Math.max(1e-30, maxAbs(expExt));
+  const rmsRel = rms(extDiff) / Math.max(1e-30, rms(expExt));
+  row('extended max abs error',  '< 1e-6',   peakAbs.toExponential(2), peakAbs < 1e-6);
+  row('extended peak rel error', '< 1e-7',  peakRel.toExponential(2), peakRel < 1e-7);
+  row('extended RMS rel error',  '< 1e-9',  rmsRel.toExponential(2),  rmsRel < 1e-9);
+
+  logLine('--- summary ---');
+  logLine('lowpass:   peak=' + lpPeak.toExponential(3) + '  rms_rel=' + lpRms.toExponential(3));
+  logLine('betas:     peak=' + betaWorst.toExponential(3) + '  rel=' + betaWorstRel.toExponential(3));
+  logLine('extended:  peak=' + peakAbs.toExponential(3) +
+    '  peak_rel=' + peakRel.toExponential(3) + '  rms_rel=' + rmsRel.toExponential(3));
+
+  runBtn.disabled = false;
+}
+
+runBtn.addEventListener('click', run);
+</script>
+
+</body>
+</html>

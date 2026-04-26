@@ -1,0 +1,19 @@
+{
+  "tier": 1,
+  "regenerated_with": "python",
+  "fs": 44100.0,
+  "NFFT": 1024,
+  "half_width": 500,
+  "L": 1024,
+  "phases_seed": 42,
+  "blend_start": 165.0,
+  "blend_end": 195.0,
+  "fit_center": 180.0,
+  "fit_width": 30.0,
+  "powerlaw_exponent": -1.25,
+  "lowpass_input": "0.6 sin(2*pi*100 t) + 0.3 sin(2*pi*800 t) + 0.1 sin(2*pi*4500 t), L=4410",
+  "lowpass_cutoff": 180.0,
+  "beta_NFFT": 256,
+  "beta_input": "Y_S = fft(exp(-30 t) sin(2 pi 120 t)); Y_L = Y_S * blend1; Y_N = powerlaw(-1.25, seed=7) * blend2",
+  "beta_value": 104427.30443668438
+}

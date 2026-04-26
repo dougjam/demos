@@ -1,0 +1,36 @@
+{
+  "sample_rate": 44100,
+  "format": "float32_le",
+  "examples": [
+    {
+      "name": "burning_brick",
+      "file": "burning_brick.bin",
+      "samples": 220377,
+      "duration_s": 4.997210884353741
+    },
+    {
+      "name": "candle",
+      "file": "candle.bin",
+      "samples": 264477,
+      "duration_s": 5.997210884353741
+    },
+    {
+      "name": "dragon",
+      "file": "dragon.bin",
+      "samples": 396654,
+      "duration_s": 8.994421768707483
+    },
+    {
+      "name": "flame_jet",
+      "file": "flame_jet.bin",
+      "samples": 440877,
+      "duration_s": 9.997210884353741
+    },
+    {
+      "name": "torch",
+      "file": "torch.bin",
+      "samples": 220377,
+      "duration_s": 4.997210884353741
+    }
+  ]
+}

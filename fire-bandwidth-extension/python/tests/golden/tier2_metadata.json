@@ -1,0 +1,148 @@
+{
+  "tier": 2,
+  "regenerated_with": "python",
+  "phases_seed": 42,
+  "fs": 44100.0,
+  "alphas": [
+    2.5,
+    3.0,
+    3.5
+  ],
+  "cases": [
+    {
+      "name": "burning_brick",
+      "alpha": 2.5,
+      "L": 220377,
+      "NFFT": 262144,
+      "n_betas": 442,
+      "elapsed_s": 33.85561203956604,
+      "file": "burning_brick_alpha2.5_seed42.npz"
+    },
+    {
+      "name": "burning_brick",
+      "alpha": 3.0,
+      "L": 220377,
+      "NFFT": 262144,
+      "n_betas": 442,
+      "elapsed_s": 34.28704810142517,
+      "file": "burning_brick_alpha3.0_seed42.npz"
+    },
+    {
+      "name": "burning_brick",
+      "alpha": 3.5,
+      "L": 220377,
+      "NFFT": 262144,
+      "n_betas": 442,
+      "elapsed_s": 35.26786231994629,
+      "file": "burning_brick_alpha3.5_seed42.npz"
+    },
+    {
+      "name": "candle",
+      "alpha": 2.5,
+      "L": 264477,
+      "NFFT": 524288,
+      "n_betas": 530,
+      "elapsed_s": 85.03645896911621,
+      "file": "candle_alpha2.5_seed42.npz"
+    },
+    {
+      "name": "candle",
+      "alpha": 3.0,
+      "L": 264477,
+      "NFFT": 524288,
+      "n_betas": 530,
+      "elapsed_s": 84.11361074447632,
+      "file": "candle_alpha3.0_seed42.npz"
+    },
+    {
+      "name": "candle",
+      "alpha": 3.5,
+      "L": 264477,
+      "NFFT": 524288,
+      "n_betas": 530,
+      "elapsed_s": 84.71494698524475,
+      "file": "candle_alpha3.5_seed42.npz"
+    },
+    {
+      "name": "dragon",
+      "alpha": 2.5,
+      "L": 396654,
+      "NFFT": 524288,
+      "n_betas": 795,
+      "elapsed_s": 128.40729999542236,
+      "file": "dragon_alpha2.5_seed42.npz"
+    },
+    {
+      "name": "dragon",
+      "alpha": 3.0,
+      "L": 396654,
+      "NFFT": 524288,
+      "n_betas": 795,
+      "elapsed_s": 126.65349841117859,
+      "file": "dragon_alpha3.0_seed42.npz"
+    },
+    {
+      "name": "dragon",
+      "alpha": 3.5,
+      "L": 396654,
+      "NFFT": 524288,
+      "n_betas": 795,
+      "elapsed_s": 125.06808114051819,
+      "file": "dragon_alpha3.5_seed42.npz"
+    },
+    {
+      "name": "flame_jet",
+      "alpha": 2.5,
+      "L": 440877,
+      "NFFT": 524288,
+      "n_betas": 883,
+      "elapsed_s": 142.77125239372253,
+      "file": "flame_jet_alpha2.5_seed42.npz"
+    },
+    {
+      "name": "flame_jet",
+      "alpha": 3.0,
+      "L": 440877,
+      "NFFT": 524288,
+      "n_betas": 883,
+      "elapsed_s": 144.4316601753235,
+      "file": "flame_jet_alpha3.0_seed42.npz"
+    },
+    {
+      "name": "flame_jet",
+      "alpha": 3.5,
+      "L": 440877,
+      "NFFT": 524288,
+      "n_betas": 883,
+      "elapsed_s": 141.97090315818787,
+      "file": "flame_jet_alpha3.5_seed42.npz"
+    },
+    {
+      "name": "torch",
+      "alpha": 2.5,
+      "L": 220377,
+      "NFFT": 262144,
+      "n_betas": 442,
+      "elapsed_s": 34.51271605491638,
+      "file": "torch_alpha2.5_seed42.npz"
+    },
+    {
+      "name": "torch",
+      "alpha": 3.0,
+      "L": 220377,
+      "NFFT": 262144,
+      "n_betas": 442,
+      "elapsed_s": 35.0751473903656,
+      "file": "torch_alpha3.0_seed42.npz"
+    },
+    {
+      "name": "torch",
+      "alpha": 3.5,
+      "L": 220377,
+      "NFFT": 262144,
+      "n_betas": 442,
+      "elapsed_s": 34.36800742149353,
+      "file": "torch_alpha3.5_seed42.npz"
+    }
+  ]
+}

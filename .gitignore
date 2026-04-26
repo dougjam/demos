@@ -10,3 +10,8 @@ Desktop.ini
 *.swp
 *~
 *.bak
+
+# Python build / test artefacts
+__pycache__/
+.pytest_cache/
+*.pyc

@@ -1,0 +1,29 @@
+//////////////////////////////////////////////////////////////////////
+// Code:
+//////////////////////////////////////////////////////////////////////
+
+All code for bandwidth extension is written in Matlab and provided in the
+'matlab' subdirectory.
+
+
+//////////////////////////////////////////////////////////////////////
+// Provided examples:
+//////////////////////////////////////////////////////////////////////
+
+Inputs for generating examples are provided in the 'work' subdirectory.
+To run bandwidth extension on an example using typical parameters from
+the paper, use the following sequence of commands:
+
+  p = read_vector( 'dragon.vector' );
+  p_extended = extend_signal( p, 44100, 180.0, 500, 180.0, 30.0,
+                              165.0, 195.0, 1.0, alpha );
+
+  % Normalize
+  M = max( abs( p_extended ) );
+  p_extended = p_extended / ( M * 1.01 );
+
+  wavwrite( p_extended, 44100, 'dragon_extended.wav' );
+
+In the call to extend_signal, set alpha to be the desired power law noise
+exponent.  See documentation in 'extend_signal.m' for explanations of this
+function's parameters.

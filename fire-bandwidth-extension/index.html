@@ -1,0 +1,573 @@
+<!--
+This file is a derivative work of the Matlab implementation released
+alongside Chadwick and James, "Animating Fire with Sound," SIGGRAPH 2011.
+See https://www.cs.cornell.edu/projects/Sound/fire/ for the original.
+
+Original copyright notice (preserved per BSD 2-Clause):
+
+Copyright (c) 2011, Jeffrey Chadwick
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spectral Bandwidth Extension &mdash; Fire Sound Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<p class="nav"><a href="../index.html">&larr; Demo gallery</a></p>
+
+<h1>Spectral Bandwidth Extension</h1>
+<p class="subtitle">
+  Adding mid- and high-frequency power-law noise to a low-frequency physically
+  based fire sound.
+</p>
+<p class="citation">
+  Algorithm 1, &sect;4 of Chadwick &amp; James,
+  <a href="https://www.cs.cornell.edu/projects/Sound/fire/">Animating Fire with Sound</a>
+  (SIGGRAPH 2011) &middot;
+  <a href="docs/2011%20Chadwick%20-%20Fire%20Sound_rekt.pdf">paper PDF</a> &middot;
+  <a href="ATTRIBUTION.html">attribution</a> &middot;
+  <a href="tests/validate.html">parity check</a>
+</p>
+
+<div id="banner" hidden></div>
+
+<section>
+  <h2>Example signal</h2>
+  <div class="example-row" id="example-row">
+    <button data-builtin="synthetic">Synthetic burst</button>
+    <!-- Additional buttons inserted dynamically from assets/manifest.json -->
+    <label for="wav-input">Load WAV&hellip;</label>
+    <input type="file" id="wav-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
+    <span class="hint" id="current-name">&nbsp;</span>
+  </div>
+  <p class="hint-text" style="font-size:0.78rem; color:#555; margin-top:0.5rem;">
+    Pick a flame-simulation example, load your own WAV, or use the built-in
+    synthetic burst. Adjust the sliders below and click <strong>Process</strong>
+    (or just change a slider with auto-process on) to extend the spectrum,
+    then play or download both the original and the extended signal.
+  </p>
+</section>
+
+<section>
+  <h2>Algorithm parameters</h2>
+  <div class="controls">
+    <div class="ctrl">
+      <label><span>&alpha; (power-law exponent)</span><span class="val" id="val-alpha">2.50</span></label>
+      <input type="range" id="slider-alpha">
+    </div>
+    <div class="ctrl">
+      <label><span>cutoff f<sub>c</sub> (Hz)</span><span class="val" id="val-f_cutoff">180.0 Hz</span></label>
+      <input type="range" id="slider-f_cutoff">
+    </div>
+    <div class="ctrl">
+      <label><span>window half-width</span><span class="val" id="val-half_width">500 smp</span></label>
+      <input type="range" id="slider-half_width">
+    </div>
+    <div class="ctrl">
+      <label><span>Gaussian fit width (Hz)</span><span class="val" id="val-fit_width">30.0 Hz</span></label>
+      <input type="range" id="slider-fit_width">
+    </div>
+    <div class="ctrl">
+      <label><span>blend half-width (Hz)</span><span class="val" id="val-blend_half_width">15.0 Hz</span></label>
+      <input type="range" id="slider-blend_half_width">
+    </div>
+    <div class="ctrl">
+      <label><span>noise amplitude</span><span class="val" id="val-noise_amplitude">1.00</span></label>
+      <input type="range" id="slider-noise_amplitude">
+    </div>
+    <div class="ctrl">
+      <label><span>RNG seed</span><span class="val" id="val-seed">42</span></label>
+      <input type="range" id="slider-seed">
+    </div>
+    <div class="ctrl"
+         title="Each per-window FFT can be small (fast, default) or run at the full signal length (matches the published Matlab reference exactly, but up to ~100x slower on long clips). Audible difference is usually inaudible; this toggle is mainly for cross-checking the algorithm's mathematical equivalence.">
+      <label><span>per-window FFT</span><span class="val">&nbsp;</span></label>
+      <label style="font-size: 0.85rem; color: var(--text); display: flex; align-items: center; gap: 0.4rem;">
+        <input type="checkbox" id="faithful-fft">
+        <span>match Matlab reference (slow on long clips)</span>
+      </label>
+    </div>
+  </div>
+  <div class="controls-actions">
+    <button id="process-btn">Process</button>
+    <button id="reset-btn" class="secondary">Reset to paper defaults</button>
+    <label class="auto-process-toggle" title="Re-process automatically when a slider changes">
+      <input type="checkbox" id="auto-process"> auto-process
+    </label>
+    <div class="progress"><div id="progress-bar"></div></div>
+    <span class="status" id="process-status">idle</span>
+  </div>
+</section>
+
+<section class="spec-and-playback">
+  <div class="spectrum-pane">
+    <h2>Input spectrum &amp; power-law extension</h2>
+    <div class="spectrum-canvas-wrap">
+      <canvas id="spectrum-canvas"></canvas>
+    </div>
+    <div class="spectrum-legend">
+      <span><span class="swatch line blue"></span> input PSD (Welch)</span>
+      <span><span class="swatch line amber dashed"></span> &beta;&middot;f<sup>&minus;&alpha;/2</sup></span>
+      <span><span class="swatch line green"></span> blended target</span>
+      <span><span class="swatch band yellow"></span> blend region [start, end]</span>
+      <span><span class="swatch band green"></span> Gaussian fit region (&plusmn;width/2)</span>
+      <span><span class="swatch line yellow"></span> cutoff f<sub>c</sub></span>
+    </div>
+  </div>
+  <div class="playback-pane">
+    <h2>Playback</h2>
+    <div class="player" id="player-original">
+      <h3>Original</h3>
+      <div class="player-row">
+        <button class="play">Play</button>
+        <button class="stop">Stop</button>
+        <input type="range" min="0" max="1" step="0.001" value="0">
+        <button class="download" title="Download as 16-bit WAV">DL</button>
+      </div>
+      <div class="meta">(no signal loaded)</div>
+    </div>
+    <div class="player" id="player-extended">
+      <h3>Extended</h3>
+      <div class="player-row">
+        <button class="play">Play</button>
+        <button class="stop">Stop</button>
+        <input type="range" min="0" max="1" step="0.001" value="0">
+        <button class="download" title="Download as 16-bit WAV">DL</button>
+      </div>
+      <div class="meta">(not yet processed)</div>
+    </div>
+  </div>
+</section>
+
+<section class="beta-panel">
+  <h2>Per-window &beta; (noise scaling)</h2>
+  <canvas id="beta-canvas"></canvas>
+  <div class="ax"><span>start</span><span>end</span></div>
+</section>
+
+<section class="specs">
+  <h2>Spectrograms</h2>
+  <div class="spec-block">
+    <h3>Input</h3>
+    <div class="spec-canvas-wrap"><canvas id="spec-input"></canvas></div>
+  </div>
+  <div class="spec-block">
+    <h3>Extended</h3>
+    <div class="spec-canvas-wrap"><canvas id="spec-extended"></canvas></div>
+  </div>
+</section>
+
+<details>
+  <summary>About this sound model</summary>
+  <div class="info-content">
+
+    <p class="ai-notice">
+      <strong>Note.</strong> This explanation was written by Claude
+      (Anthropic) by reading the Chadwick &amp; James (2011) paper, the
+      authors&rsquo; released Matlab source, and the Python and JavaScript
+      ports in this repo. It has been spot-checked but has not been
+      reviewed by a domain expert; cross-check the math against the
+      cited references before relying on it for coursework or research.
+    </p>
+
+    <p>
+      <strong>One-sentence summary.</strong> Take a low-frequency,
+      physically simulated fire sound; build a high-frequency
+      power-law noise field once for the whole clip; multiply that noise
+      by the slow amplitude envelope of the input; and overlap-add the
+      result on top of the input, with a per-window matching step that
+      sets the noise level so the two spectra meet smoothly at the
+      cutoff.
+    </p>
+
+    <h4>The setting</h4>
+    <p>
+      Physically based fire animation produces sound by solving a
+      <em>linearised wave equation</em> on a 3D grid surrounding the flame,
+      driven by a source term derived from the combustion (typically the
+      time derivative of the heat release rate; see Chadwick &amp; James
+      2011, &sect;3). The output is a pressure signal at a virtual
+      microphone position.
+    </p>
+    <p>
+      The simulation cost grows quickly with the spatial Nyquist frequency,
+      so production-quality flame simulations are run at a coarse grid
+      and the resulting sound is band-limited to roughly the first
+      hundred or two hundred Hz. Real fire is broadband (audible content
+      out to several kHz), so this band-limited signal sounds dull and
+      "wave-like" rather than crackling. The job of <strong>spectral
+      bandwidth extension</strong> (Algorithm 1, &sect;4 of the paper) is
+      to fill in the missing mid and high frequencies in a way that
+      sounds plausible and stays time-locked to the simulated bursts.
+    </p>
+
+    <h4>Why &ldquo;partially&rdquo; physically based</h4>
+    <p>
+      The low-frequency input <em>is</em> physical: it comes from the
+      wave-equation solve. The high-frequency content added here is
+      <em>statistical</em>: random-phase noise whose power-spectral-density
+      (PSD) slope and time-varying amplitude are chosen to look right, not
+      derived from a wave-level model of small-scale flame turbulence. The
+      empirical justification is that real fire spectra are well
+      approximated by a power law
+      <span class="eq-inline">P(f) &prop; f<sup>&minus;&alpha;</sup></span>
+      over a wide band:
+    </p>
+    <ul>
+      <li>
+        Clavin &amp; Siggia (1991) derived
+        <span class="eq-inline">P(f) &prop; f<sup>&minus;5/2</sup></span>
+        (i.e. <span class="eq-inline">&alpha; = 2.5</span>) for turbulent
+        premixed flames from theoretical considerations.
+      </li>
+      <li>
+        Rajaram &amp; Lieuwen (2009) measured combustion-noise spectra
+        directly and reported exponents in the range
+        <span class="eq-inline">&alpha; &isin; [2.1, 3.4]</span>.
+      </li>
+    </ul>
+    <p>
+      So the high-frequency content has the right <em>spectral shape</em>
+      and (because it is gain-modulated by the simulated envelope) the
+      right <em>burst timing</em>, but the individual high-frequency
+      samples are random draws, not predictions of a finer-resolution
+      simulation. Two flame simulations with very different
+      small-scale combustion structure but the same envelope will sound
+      similar at high frequency.
+    </p>
+
+    <h4>How the algorithm works</h4>
+    <p>
+      One <strong>noise field</strong> is built up front for the whole
+      clip; a <strong>windowed loop</strong> then matches and blends it
+      into the input.
+    </p>
+    <ol>
+      <li>
+        <strong>Envelope extraction.</strong> Apply a zero-phase order-2
+        Butterworth lowpass at
+        <span class="eq-inline">f<sub>c</sub></span> (default 180 Hz) to
+        the input <span class="eq-inline">p(t)</span>, producing
+        <span class="eq-inline">p<sub>L</sub>(t)</span>. The absolute value
+        <span class="eq-inline">|p<sub>L</sub>(t)|</span> is the slow
+        amplitude envelope that will gain-modulate the high-frequency
+        noise.
+      </li>
+      <li>
+        <strong>Power-law noise field (built once).</strong> Construct a
+        complex spectrum
+        <span class="eq-inline">N(f) = f<sup>&minus;&alpha;/2</sup> &middot;
+        e<sup>i&phi;(f)</sup></span>
+        with phases
+        <span class="eq-inline">&phi;(f)</span> drawn uniformly from
+        <span class="eq-inline">[0, 2&pi;)</span>. The exponent
+        <span class="eq-inline">&minus;&alpha;/2</span> on
+        <em>magnitude</em> gives the desired
+        <span class="eq-inline">&minus;&alpha;</span> on
+        <em>PSD</em>. Multiply <span class="eq-inline">N(f)</span> by the
+        high-pass blend filter
+        <span class="eq-inline">blend<sub>2</sub>(f)</span> to remove its
+        low-frequency content (which would compete with the input), then
+        inverse-FFT to get a time-domain noise signal
+        <span class="eq-inline">n(t)</span>. The same
+        <span class="eq-inline">n(t)</span> is reused across all windows;
+        this is what makes overlap-added windows blend without phase
+        seams.
+      </li>
+      <li>
+        <strong>Per-window match.</strong> For each triangular analysis
+        window <span class="eq-inline">w<sub>i</sub></span>, compute the
+        FFT of the windowed signal
+        <span class="eq-inline">Y(f) = FFT(p &middot; w<sub>i</sub>)</span>
+        and the FFT of the envelope-shaped noise
+        <span class="eq-inline">Y<sub>N</sub>(f) = FFT(|p<sub>L</sub>| &middot; w<sub>i</sub> &middot; n)</span>.
+        Then split:
+        <span class="eq-inline">Y<sub>L</sub>(f) = blend<sub>1</sub>(f) Y(f)</span>
+        is the lowpass branch and
+        <span class="eq-inline">Y<sub>N&prime;</sub>(f) = blend<sub>2</sub>(f) Y<sub>N</sub>(f)</span>
+        is the highpass branch. Solve for the positive scalar
+        <span class="eq-inline">&beta;</span> that makes the
+        Gaussian-weighted energy of
+        <span class="eq-inline">Y<sub>L</sub> + &beta; Y<sub>N&prime;</sub></span>
+        equal to that of the unfiltered windowed signal
+        <span class="eq-inline">Y</span>:
+      </li>
+    </ol>
+    <span class="eq">
+      &int; |Y<sub>L</sub>(f) + &beta; Y<sub>N&prime;</sub>(f)|<sup>2</sup>
+      g(f) df
+      &nbsp;=&nbsp;
+      &int; |Y(f)|<sup>2</sup> g(f) df
+    </span>
+    <p>
+      where <span class="eq-inline">g(f)</span> is a Gaussian weighting
+      centered on <span class="eq-inline">f<sub>c</sub></span> with
+      standard deviation <em>fit_width / 3</em>. Expanding gives a
+      quadratic <span class="eq-inline">a&beta;<sup>2</sup> + b&beta; + c = 0</span>
+      whose coefficients are integrals of bilinear forms in
+      <span class="eq-inline">Y<sub>L</sub></span>,
+      <span class="eq-inline">Y<sub>N&prime;</sub></span>, and
+      <span class="eq-inline">Y</span>; the implementation evaluates each
+      integral with the trapezoidal rule and picks the positive root via
+      Vieta's identity. (See <a href="docs/ALGORITHM.md">docs/ALGORITHM.md</a>
+      for the full coefficient expressions.)
+    </p>
+    <ol start="4">
+      <li>
+        <strong>Blend &amp; overlap-add.</strong> Inverse-FFT the blended
+        spectrum
+        <span class="eq-inline">Y<sub>L</sub> + &beta; Y<sub>N&prime;</sub></span>,
+        take its real part, and overlap-add into the running output. The
+        triangular window with stride
+        <span class="eq-inline">halfWidth</span> satisfies the
+        <em>constant-overlap-add</em> identity
+        (sums to 1), so the in-band content is reconstructed from window
+        to window without amplitude modulation (modulo the half-amplitude
+        effect noted below).
+      </li>
+    </ol>
+
+    <h4>What the controls do</h4>
+    <ul>
+      <li>
+        <strong>&alpha;</strong> &mdash; the power-law PSD exponent.
+        Larger values produce a darker high-frequency tail (more rolloff,
+        less crackle); smaller values brighten it. Default 2.5; the
+        physically motivated range from the cited measurements is
+        roughly [2.0, 3.5].
+      </li>
+      <li>
+        <strong>cutoff f<sub>c</sub></strong> &mdash; the centre of the
+        crossover. Above <span class="eq-inline">f<sub>c</sub></span> the
+        output increasingly comes from noise; below
+        <span class="eq-inline">f<sub>c</sub></span> it increasingly comes
+        from the simulated input. Slide up if you trust your simulated
+        signal further into the audible band; slide down to replace more
+        of it with noise.
+      </li>
+      <li>
+        <strong>window half-width</strong> (samples) &mdash; the analysis
+        window covers <em>2&times;halfWidth+1</em> samples and the loop
+        strides by <em>halfWidth</em> (50&nbsp;% overlap). Smaller windows
+        let <span class="eq-inline">&beta;</span> track fast envelope
+        changes (more time resolution) at the cost of a coarser
+        per-window frequency resolution.
+      </li>
+      <li>
+        <strong>Gaussian fit width</strong> (Hz) &mdash; the full width of
+        the matching kernel; its standard deviation is one-third of this
+        value. A narrow kernel matches the spectra essentially at
+        <span class="eq-inline">f<sub>c</sub></span> only; a wider kernel
+        averages over a broader band of the spectrum.
+      </li>
+      <li>
+        <strong>blend half-width</strong> (Hz) &mdash; the linear ramp
+        between <span class="eq-inline">blend<sub>1</sub></span> and
+        <span class="eq-inline">blend<sub>2</sub></span> spans
+        <em>2&times;blend_half_width</em>, centred on
+        <span class="eq-inline">f<sub>c</sub></span>. Smaller values give
+        a sharper crossover; larger values give a gentler one.
+      </li>
+      <li>
+        <strong>noise amplitude</strong> &mdash; an extra global multiplier
+        on the noise contribution after the
+        <span class="eq-inline">&beta;</span> match. 0 disables the
+        high-frequency content entirely (you hear only the lowpassed
+        input, at half amplitude); 1 is the paper's default; values above
+        1 push the high frequencies louder than the matching solver chose
+        on its own.
+      </li>
+      <li>
+        <strong>RNG seed</strong> &mdash; integer seed for the shared
+        PCG32 random-phase generator. The same seed produces the same
+        phase array in both this JavaScript port and the Python reference,
+        so the two implementations agree on the extended waveform up to
+        FFT round-off (~10<sup>&minus;6</sup> on the synthetic
+        validate.html test).
+      </li>
+      <li>
+        <strong>match Matlab reference</strong> (checkbox) &mdash; if
+        ticked, every per-window FFT runs at the full signal length
+        (<span class="eq-inline">N<sub>FFT</sub> = next_pow2(L)</span>),
+        bit-for-bit matching the published Matlab code. Off (the default)
+        uses smaller per-window FFTs (<em>next_pow2(8&times;halfWidth)</em>,
+        typically 4096&ndash;8192) for ~100&times; speedup at the cost of
+        evaluating the matching integral on a coarser frequency grid.
+      </li>
+    </ul>
+
+    <h4>Things to notice</h4>
+    <ul>
+      <li>
+        With the <strong>Synthetic burst</strong> preset, set
+        <strong>noise amplitude = 0</strong> and play the extended audio:
+        you hear the in-band tones at half their original amplitude (a
+        consequence of the algorithm's one-sided spectrum filtering; see
+        Caveats). Set it back to 1 and the tones gain a fire-like crackle
+        whose loudness tracks the burst envelope.
+      </li>
+      <li>
+        Drag <strong>&alpha;</strong> from 1.5 to 4.0 and watch the
+        amber dashed line in the spectrum plot tilt steeper. The audible
+        change is from crispy / hissy (small &alpha;, brighter spectrum)
+        to dull / muffled (large &alpha;, darker spectrum).
+      </li>
+      <li>
+        Drag <strong>cutoff f<sub>c</sub></strong> from 60 Hz up to 500 Hz
+        and watch the green &ldquo;blended target&rdquo; line in the
+        spectrum plot rotate around the moving yellow cutoff line. At low
+        cutoffs almost the entire output is noise; at high cutoffs you
+        keep more of the simulated content.
+      </li>
+      <li>
+        Pick the <strong>Flame Jet</strong> example and watch the
+        per-window <span class="eq-inline">&beta;</span> trace below the
+        playback panel: it spikes upward during loud combustion bursts
+        and falls back between them, exactly the behaviour that ties the
+        synthesised high-frequency content to the simulated envelope.
+      </li>
+      <li>
+        Toggle <strong>match Matlab reference</strong> on and off after
+        loading one of the bundled signals. The audible difference is
+        usually below the noise floor; the perceptual identity is good
+        evidence that the small-FFT approximation is safe.
+      </li>
+    </ul>
+
+    <h4>Caveats and things this model is not</h4>
+    <ul>
+      <li>
+        The Matlab implementation applies a one-sided lowpass to the
+        two-sided FFT. The negative-frequency mirror is zeroed, so taking
+        the real part of the IFFT halves the in-band magnitude (a 6.02&nbsp;dB
+        drop). The released code masks this by peak-normalising the
+        output before saving WAV; this port preserves the underlying
+        behaviour, and the Tier 3 test suite asserts the
+        &minus;6.02&nbsp;dB drop. The Download buttons here also peak-normalise
+        the WAV they save.
+      </li>
+      <li>
+        The high-frequency content is a statistical model, not a
+        prediction of small-scale physics. Comparing two simulations'
+        high-frequency content tells you whether their envelopes differ,
+        not whether their flame structures differ. For research that
+        cares about the high-end <em>physics</em> (e.g. analysis of
+        turbulent flame noise), use a higher-resolution simulation or a
+        wave-level combustion-noise model rather than this synthesis
+        step.
+      </li>
+      <li>
+        The matching <span class="eq-inline">&beta;</span> is a single
+        scalar per window. If the input has a strong feature very close
+        to <span class="eq-inline">f<sub>c</sub></span> in some windows
+        and not others, <span class="eq-inline">&beta;</span> may swing
+        sharply between adjacent windows; the per-window
+        <span class="eq-inline">&beta;</span> trace lets you see that
+        directly.
+      </li>
+      <li>
+        Defaults match the paper's example call:
+        <span class="eq-inline">f<sub>c</sub> = 180</span>&nbsp;Hz,
+        <span class="eq-inline">&alpha; = 2.5</span>,
+        halfWidth = 500 samples (about 11.3&nbsp;ms at 44.1&nbsp;kHz),
+        Gaussian fit width = 30&nbsp;Hz, blend half-width = 15&nbsp;Hz,
+        noise amplitude = 1, seed = 42. The Reset button restores these.
+      </li>
+    </ul>
+
+    <h4>References</h4>
+    <ol>
+      <li class="ref">
+        Chadwick, J. N., and James, D. L. (2011). <em>Animating Fire with Sound.</em>
+        ACM Transactions on Graphics (SIGGRAPH 2011), 30(4).
+        <a href="https://www.cs.cornell.edu/projects/Sound/fire/">cs.cornell.edu/projects/Sound/fire</a>
+        &middot;
+        <a href="https://www.cs.cornell.edu/projects/Sound/fire/FireSound2011.pdf">paper PDF</a>
+      </li>
+      <li class="ref">
+        Clavin, P., and Siggia, E. D. (1991). <em>Turbulent premixed flames
+        and sound generation.</em> Combustion Science and Technology, 78(1&ndash;3),
+        147&ndash;155. <em>(theoretical f<sup>&minus;5/2</sup> derivation)</em>
+      </li>
+      <li class="ref">
+        Rajaram, R., and Lieuwen, T. (2009). <em>Acoustic radiation from
+        turbulent premixed flames.</em> Journal of Fluid Mechanics, 637,
+        357&ndash;385.
+        <em>(empirical exponents &alpha; &isin; [2.1, 3.4])</em>
+      </li>
+      <li class="ref">
+        Z&ouml;lzer, U., and Amatriain, X., eds. (2002). <em>DAFX: Digital
+        Audio Effects.</em> Wiley. <em>(general reference for
+        frequency-domain noise synthesis and the spectral-blend approach.)</em>
+      </li>
+    </ol>
+
+    <p style="margin-top:0.7rem;">
+      Implementation notes (per-rule fidelity log against the Matlab
+      reference, bit-tolerance budget for the JS port) are in
+      <a href="docs/ALGORITHM.md"><code>docs/ALGORITHM.md</code></a>.
+      The full project specification is
+      <a href="SPEC_SpectralBandwidthExtension.md"><code>SPEC_SpectralBandwidthExtension.md</code></a>.
+    </p>
+
+  </div>
+</details>
+
+<footer>
+  Spectral bandwidth extension algorithm by
+  <strong>Jeffrey N. Chadwick</strong> and <strong>Doug L. James</strong>,
+  Cornell University. JavaScript demo by Claude Code,
+  for CS 448Z, Stanford University, Spring 2026.
+  <div class="links">
+    <a href="https://www.cs.cornell.edu/projects/Sound/fire/">Cornell project page</a>
+    <a href="https://www.cs.cornell.edu/projects/Sound/fire/FireSound2011.pdf">Paper PDF (cornell.edu)</a>
+    <a href="docs/2011%20Chadwick%20-%20Fire%20Sound_rekt.pdf">Paper PDF (local)</a>
+    <a href="ATTRIBUTION.html">Attribution</a>
+    <a href="LICENSE">License (BSD-2-Clause)</a>
+    <a href="docs/DEMO_DISCLAIMER.md">Disclaimer</a>
+  </div>
+  <div class="disclaimer">
+    This demo was created using Claude Code (Anthropic). As AI-assisted work,
+    it warrants independent review and may contain errors. It is provided
+    "as is" for educational purposes only, with no warranty of any kind. It
+    does not represent an official Stanford University product or
+    endorsement. Do not rely on it for safety-critical applications,
+    engineering decisions, medical or legal guidance, or any purpose where
+    inaccuracies could cause harm.
+  </div>
+</footer>
+
+<script src="fft.js?v=11"></script>
+<script src="deterministic_rng.js?v=11"></script>
+<script src="bandwidth_extension.js?v=11"></script>
+<script src="main.js?v=11"></script>
+
+</body>
+</html>
