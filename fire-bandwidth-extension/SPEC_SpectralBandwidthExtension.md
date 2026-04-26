@@ -363,7 +363,7 @@ attribution to the original authors required by the same terms.
 ## Test signal data
 
 The five `.vector` files in `srcOrig/work/` are the low-frequency outputs
-of physically-based flame simulations, produced by the original authors
+of physically based flame simulations, produced by the original authors
 and distributed with their code release. They are used here unmodified
 (re-encoded as Float32 for browser delivery) for educational demonstration.
 

@@ -1,4 +1,4 @@
-# Spectral Bandwidth Extension &mdash; Fire Sound Demo
+# Spectral Bandwidth Extension: Fire Sound Demo
 
 A faithful Python port and a self-contained interactive browser demo of
 the spectral bandwidth extension algorithm (Algorithm 1, &sect;4) from:
@@ -8,9 +8,11 @@ the spectral bandwidth extension algorithm (Algorithm 1, &sect;4) from:
 > Project page: <https://www.cs.cornell.edu/projects/Sound/fire/>
 
 The algorithm extends a low-frequency physically based pressure signal
-(the output of a wave-equation solve, band-limited below &asymp; 200 Hz by
-simulation cost) into a broadband, perceptually fire-like signal by
-adding amplitude-modulated power-law noise (`f^{-alpha}` with
+(the time derivative of the velocity flux through the moving flame
+front, under the simplifying assumptions of paper &sect;3; band-limited
+to the flame solver's Nyquist, &asymp; 180 Hz at a 360 Hz time-stepping
+rate) into a broadband, perceptually fire-like signal by adding
+amplitude-modulated power-law noise (`f^{-alpha}` with
 `alpha &asymp; 2.5`) above the lowpass cutoff.
 
 ## Citation
@@ -81,10 +83,10 @@ pytest python/tests/
 
 Three tiers (per `SPEC_SpectralBandwidthExtension.md`):
 
-- **Tier 1** &mdash; deterministic kernel goldens (`atol=rtol=1e-13`).
-- **Tier 2** &mdash; full-pipeline phase-controlled goldens for 5 signals
+- **Tier 1**: deterministic kernel goldens (`atol=rtol=1e-13`).
+- **Tier 2**: full-pipeline phase-controlled goldens for 5 signals
   &times; 3 alphas, used as the JS-vs-Python parity target.
-- **Tier 3** &mdash; statistical smoke tests (COLA identity, silent
+- **Tier 3**: statistical smoke tests (COLA identity, silent
   input, sub-cutoff sine preservation, log-log slope check, envelope
   sync via Hilbert correlation, byte-identical determinism).
 

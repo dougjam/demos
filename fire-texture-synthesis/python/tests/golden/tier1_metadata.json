@@ -1,0 +1,176 @@
+{
+  "tier": 1,
+  "regenerated_with": "python",
+  "pyramid_shapes": [
+    {
+      "input_size": 200,
+      "level_sizes": [
+        257,
+        129,
+        65,
+        33,
+        17,
+        9
+      ],
+      "start_indices": [
+        28,
+        14,
+        7,
+        4,
+        2,
+        1
+      ],
+      "end_indices": [
+        228,
+        114,
+        57,
+        29,
+        15,
+        8
+      ]
+    },
+    {
+      "input_size": 1000,
+      "level_sizes": [
+        1025,
+        513,
+        257,
+        129,
+        65,
+        33
+      ],
+      "start_indices": [
+        12,
+        6,
+        3,
+        2,
+        1,
+        1
+      ],
+      "end_indices": [
+        1012,
+        506,
+        253,
+        127,
+        64,
+        32
+      ]
+    },
+    {
+      "input_size": 4096,
+      "level_sizes": [
+        4097,
+        2049,
+        1025,
+        513,
+        257,
+        129
+      ],
+      "start_indices": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "end_indices": [
+        4096,
+        2048,
+        1024,
+        512,
+        256,
+        128
+      ]
+    }
+  ],
+  "cdf": {
+    "cdf": [
+      0.0,
+      0.5,
+      1.5,
+      3.0,
+      5.0,
+      7.5,
+      10.0
+    ],
+    "samples": [
+      {
+        "fraction": 0.0,
+        "amplitude": 0.0
+      },
+      {
+        "fraction": 0.25,
+        "amplitude": 1.0
+      },
+      {
+        "fraction": 0.5,
+        "amplitude": 3.0
+      },
+      {
+        "fraction": 0.75,
+        "amplitude": 6.25
+      },
+      {
+        "fraction": 1.0,
+        "amplitude": 10.0
+      }
+    ],
+    "inverse_samples": [
+      {
+        "amplitude": 0.0,
+        "fraction": 0.0
+      },
+      {
+        "amplitude": 0.5,
+        "fraction": 0.16666666666666666
+      },
+      {
+        "amplitude": 2.25,
+        "fraction": 0.41666666666666663
+      },
+      {
+        "amplitude": 5.0,
+        "fraction": 0.6666666666666666
+      },
+      {
+        "amplitude": 10.0,
+        "fraction": 1.0
+      },
+      {
+        "amplitude": 50.0,
+        "fraction": 1.0
+      },
+      {
+        "amplitude": -5.0,
+        "fraction": 0.0
+      }
+    ]
+  },
+  "kdtree": {
+    "n_points": 64,
+    "n_dim": 8,
+    "query": [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "matched_index": 28,
+    "matched_distance": 0.48930466631046626
+  },
+  "pcg32_seed42_first8": [
+    0.4421448060311377,
+    0.23623736714944243,
+    0.9536763080395758,
+    0.14759166655130684,
+    0.2652577902190387,
+    0.56567323487252,
+    0.3210757712367922,
+    0.3276327084749937
+  ]
+}

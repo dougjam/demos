@@ -1,0 +1,10 @@
+{
+  "fs": 44100,
+  "num_levels": 6,
+  "window_hw": 4,
+  "feature_hw": 3,
+  "eps_ann": 1.0,
+  "falloff": 0.0,
+  "scale_cdf": true,
+  "scaling_alpha": 1.0
+}

@@ -122,10 +122,21 @@ function makePlayer(which, getSamples) {
   playBtn.addEventListener('click', () => {
     if (state.node) {
       const samples = getSamples();
+      const dur = samples.length / 44100;
       const elapsed = audioCtx.currentTime - state.startedAt + state.offset;
-      stopPlayer();
-      state.offset = Math.min(samples.length / 44100 - 0.01, elapsed);
-      meta.textContent = `paused at ${state.offset.toFixed(2)} s`;
+      // Race guard: if the clip already finished but neither tick() nor
+      // onended has cleared state.node yet, treat the click as
+      // "restart from the beginning" rather than as a pause-at-end.
+      if (elapsed >= dur - 0.02) {
+        stopPlayer();
+        state.offset = 0;
+        seek.value = '0';
+        startPlayer(0);
+      } else {
+        stopPlayer();
+        state.offset = Math.min(dur - 0.01, elapsed);
+        meta.textContent = `paused at ${state.offset.toFixed(2)} s`;
+      }
     } else {
       const samples = getSamples();
       if (!samples) return;
@@ -635,9 +646,9 @@ async function ensureWorker() {
       }
     };
     const [fftSrc, rngSrc, bweSrc] = await Promise.all([
-      fetchFresh('fft.js?v=11'),
-      fetchFresh('deterministic_rng.js?v=11'),
-      fetchFresh('bandwidth_extension.js?v=11'),
+      fetchFresh('fft.js?v=15'),
+      fetchFresh('deterministic_rng.js?v=15'),
+      fetchFresh('bandwidth_extension.js?v=15'),
     ]);
     const blob = new Blob(
       [fftSrc, '\n;\n', rngSrc, '\n;\n', bweSrc, '\n;\n', WORKER_HANDLER],

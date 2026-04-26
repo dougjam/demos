@@ -1,0 +1,91 @@
+{
+  "tier": 2,
+  "regenerated_with": "python",
+  "cases": [
+    {
+      "name": "burning_brick",
+      "base_samples": 220377,
+      "training_samples": 393254,
+      "n_windows": 126981,
+      "elapsed_s": 33.714280128479004,
+      "params": {
+        "fs": 44100.0,
+        "num_levels": 6,
+        "window_hw": 4,
+        "feature_hw": 3,
+        "falloff": 0.0,
+        "scale_cdf": true,
+        "scaling_alpha": 1.0
+      },
+      "file": "burning_brick_synthesized.npz"
+    },
+    {
+      "name": "candle",
+      "base_samples": 264477,
+      "training_samples": 448291,
+      "n_windows": 253957,
+      "elapsed_s": 140.3739185333252,
+      "params": {
+        "fs": 44100.0,
+        "num_levels": 6,
+        "window_hw": 4,
+        "feature_hw": 3,
+        "falloff": 0.0,
+        "scale_cdf": true,
+        "scaling_alpha": 1.0
+      },
+      "file": "candle_synthesized.npz"
+    },
+    {
+      "name": "dragon",
+      "base_samples": 396654,
+      "training_samples": 604463,
+      "n_windows": 253957,
+      "elapsed_s": 66.30573844909668,
+      "params": {
+        "fs": 44100.0,
+        "num_levels": 6,
+        "window_hw": 4,
+        "feature_hw": 3,
+        "falloff": 0.0,
+        "scale_cdf": true,
+        "scaling_alpha": 1.0
+      },
+      "file": "dragon_synthesized.npz"
+    },
+    {
+      "name": "flame_jet",
+      "base_samples": 440877,
+      "training_samples": 670790,
+      "n_windows": 253957,
+      "elapsed_s": 72.57704520225525,
+      "params": {
+        "fs": 44100.0,
+        "num_levels": 6,
+        "window_hw": 4,
+        "feature_hw": 3,
+        "falloff": 0.0,
+        "scale_cdf": true,
+        "scaling_alpha": 1.0
+      },
+      "file": "flame_jet_synthesized.npz"
+    },
+    {
+      "name": "torch",
+      "base_samples": 220377,
+      "training_samples": 719241,
+      "n_windows": 126981,
+      "elapsed_s": 100.60605883598328,
+      "params": {
+        "fs": 44100.0,
+        "num_levels": 6,
+        "window_hw": 4,
+        "feature_hw": 3,
+        "falloff": 0.0,
+        "scale_cdf": true,
+        "scaling_alpha": 1.0
+      },
+      "file": "torch_synthesized.npz"
+    }
+  ]
+}

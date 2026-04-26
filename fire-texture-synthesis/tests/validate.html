@@ -1,0 +1,234 @@
+<!--
+This file is a derivative work of the C++ implementation released
+alongside Chadwick and James, "Animating Fire with Sound," SIGGRAPH 2011.
+See https://www.cs.cornell.edu/projects/Sound/fire/ for the original.
+
+Original copyright notice (preserved per BSD 2-Clause):
+
+Copyright (c) 2011, Jeffrey Chadwick
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JS port parity check &mdash; Fire Sound Texture Synthesis</title>
+<style>
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.5;
+    padding: 1.5rem;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.4rem; }
+  p.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ddd; }
+  th { background: #eef2ff; }
+  td.metric { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .pass { color: #117a3a; font-weight: 600; }
+  .fail { color: #b1300d; font-weight: 600; }
+  pre {
+    background: #1f2230; color: #ddd; padding: 0.75rem 1rem;
+    border-radius: 6px; overflow-x: auto; font-size: 0.8rem;
+    white-space: pre-wrap;
+  }
+  button {
+    background: #2563eb; color: #fff; border: 0; padding: 0.55rem 1.1rem;
+    border-radius: 4px; font-size: 0.95rem; cursor: pointer;
+  }
+  button:disabled { background: #aaa; cursor: progress; }
+  a { color: #2563eb; }
+  .nav { font-size: 0.85rem; margin-bottom: 1rem; }
+  code { background: #eef2ff; padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.92em; }
+</style>
+</head>
+<body>
+
+<p class="nav"><a href="../index.html">&larr; Back to demo</a></p>
+
+<h1>JS port parity check</h1>
+<p class="subtitle">
+  Cross-language verification: this page runs the JavaScript texture
+  synthesis on the same synthetic input + training pair used by the
+  Python port and compares the outputs. See
+  <code>SPEC_FireTextureSynthesis.md</code> &sect;4.2.
+</p>
+
+<button id="runBtn">Run parity check</button>
+
+<table id="results">
+  <thead>
+    <tr><th>Test</th><th>Threshold</th><th>Achieved</th><th>Status</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h2 style="font-size: 1.05rem; margin-top: 1.6rem;">Console</h2>
+<pre id="log">Click "Run parity check" to start.</pre>
+
+<script src="../kdtree.js?v=12"></script>
+<script src="../deterministic_rng.js?v=12"></script>
+<script src="../texture_synthesis.js?v=12"></script>
+<script>
+'use strict';
+
+const log = document.getElementById('log');
+const tbody = document.querySelector('#results tbody');
+const runBtn = document.getElementById('runBtn');
+
+function logLine(s) {
+  log.textContent += '\n' + s;
+  log.scrollTop = log.scrollHeight;
+}
+
+function row(name, expected, achieved, pass) {
+  const tr = document.createElement('tr');
+  const cls = pass ? 'pass' : 'fail';
+  const status = pass ? 'PASS' : 'FAIL';
+  tr.innerHTML =
+    '<td>' + name + '</td>' +
+    '<td class="metric">' + expected + '</td>' +
+    '<td class="metric">' + achieved + '</td>' +
+    '<td class="' + cls + '">' + status + '</td>';
+  tbody.appendChild(tr);
+}
+
+function maxAbs(arr) {
+  let m = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const v = Math.abs(arr[i]);
+    if (v > m) m = v;
+  }
+  return m;
+}
+
+function rms(arr) {
+  let s = 0;
+  for (let i = 0; i < arr.length; i++) s += arr[i] * arr[i];
+  return Math.sqrt(s / arr.length);
+}
+
+async function run() {
+  runBtn.disabled = true;
+  log.textContent = '[loading golden...]';
+  tbody.innerHTML = '';
+
+  // 1. PCG32 byte-for-byte parity (re-used from sibling demo's pin)
+  const expectedFirst8 = [
+    0.4421448060311377, 0.23623736714944243, 0.9536763080395758,
+    0.14759166655130684, 0.2652577902190387, 0.56567323487252,
+    0.3210757712367922, 0.3276327084749937
+  ];
+  const rng = new DeterministicRng(42);
+  let rngWorst = 0;
+  for (let i = 0; i < 8; i++) {
+    const v = rng.random();
+    const e = expectedFirst8[i];
+    rngWorst = Math.max(rngWorst, Math.abs(v - e));
+  }
+  row('PCG32 first 8 outputs (seed=42)', '0', rngWorst.toExponential(2), rngWorst === 0);
+
+  // 2. Gaussian level reduction sanity (mid-range stencil produces zero on cosine of half-Nyquist? no, just check shape)
+  const TS = window.TextureSynthesis;
+  const sig = new Float64Array(257);
+  for (let i = 0; i < 257; i++) sig[i] = Math.sin(i * 0.1);
+  const lvl = TS.buildGaussianLevel(sig);
+  row('Gaussian level shape (257 -> 129)', '129', String(lvl.length), lvl.length === 129);
+
+  // 3. Pyramid pad invariant: 257 input -> 257 padded (already pow2+1).
+  const padded = TS.padInputSignal(sig, false);
+  row('Pad input pow2+1 (257)', '257', String(padded.padded.length), padded.padded.length === 257);
+
+  // 4. CDF sampling roundtrip
+  const cdfTest = new Float64Array([0.1, 0.5, 1.0, 2.0, 5.0]);
+  const fr = TS.sampleInverseCdf(2.0, cdfTest);
+  const back = TS.sampleCdf(fr, cdfTest);
+  row('CDF roundtrip (amp=2)', '< 1e-12', Math.abs(back - 2.0).toExponential(2), Math.abs(back - 2.0) < 1e-12);
+
+  // 5. Load Python golden and run full synthesis
+  const golden = await (await fetch('golden_synthetic.json')).json();
+  logLine('loaded golden_synthetic.json (' + golden.base.length + ' base samples, '
+    + golden.training.length + ' training samples)');
+  const params = golden.params;
+
+  const t0 = performance.now();
+  const out = TS.synthesize(
+    new Float64Array(golden.base),
+    new Float64Array(golden.training),
+    {
+      numLevels: params.num_levels,
+      windowHw: params.window_hw,
+      featureHw: params.feature_hw,
+      falloff: params.falloff,
+      scaleCdf: params.scale_cdf,
+      scalingAlpha: params.scaling_alpha,
+    }
+  );
+  const dt = performance.now() - t0;
+  logLine('JS synthesis: ' + out.output.length + ' samples in ' + dt.toFixed(0) + ' ms');
+
+  // 6. Compare scaling per window
+  const expScaling = new Float64Array(golden.expected_scaling_per_window);
+  const scalingDiff = new Float64Array(out.scalingPerWindow.length);
+  for (let i = 0; i < scalingDiff.length; i++) {
+    scalingDiff[i] = out.scalingPerWindow[i] - expScaling[i];
+  }
+  const scalingPeak = maxAbs(scalingDiff);
+  const scalingRmsRel = rms(scalingDiff) / Math.max(1e-30, rms(expScaling));
+  row('per-window scaling max abs error', '< 1e-9', scalingPeak.toExponential(2), scalingPeak < 1e-9);
+  row('per-window scaling RMS rel error', '< 1e-12', scalingRmsRel.toExponential(2), scalingRmsRel < 1e-12);
+
+  // 7. Compare extended waveform
+  const expOut = new Float64Array(golden.expected_output);
+  const diff = new Float64Array(out.output.length);
+  for (let i = 0; i < out.output.length; i++) {
+    diff[i] = out.output[i] - expOut[i];
+  }
+  const peakAbs = maxAbs(diff);
+  const peakRel = peakAbs / Math.max(1e-30, maxAbs(expOut));
+  const rmsRel = rms(diff) / Math.max(1e-30, rms(expOut));
+  row('output max abs error', '< 1e-6', peakAbs.toExponential(2), peakAbs < 1e-6);
+  row('output peak rel error', '< 1e-7', peakRel.toExponential(2), peakRel < 1e-7);
+  row('output RMS rel error', '< 1e-9', rmsRel.toExponential(2), rmsRel < 1e-9);
+
+  logLine('--- summary ---');
+  logLine('output: peak=' + peakAbs.toExponential(3)
+    + '  peak_rel=' + peakRel.toExponential(3)
+    + '  rms_rel=' + rmsRel.toExponential(3));
+  logLine('scaling: peak=' + scalingPeak.toExponential(3)
+    + '  rms_rel=' + scalingRmsRel.toExponential(3));
+
+  runBtn.disabled = false;
+}
+
+runBtn.addEventListener('click', run);
+</script>
+
+</body>
+</html>

@@ -35,7 +35,7 @@ POSSIBILITY OF SUCH DAMAGE.
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spectral Bandwidth Extension &mdash; Fire Sound Demo</title>
+<title>Spectral Bandwidth Extension: Fire Sound Demo</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -188,46 +188,60 @@ POSSIBILITY OF SUCH DAMAGE.
   <summary>About this sound model</summary>
   <div class="info-content">
 
-    <p>
-      <strong>One-sentence summary.</strong> Take a low-frequency,
-      physically simulated fire sound; build a high-frequency
-      power-law noise field once for the whole clip; multiply that noise
-      by the slow amplitude envelope of the input; and overlap-add the
-      result on top of the input, with a per-window matching step that
-      sets the noise level so the two spectra meet smoothly at the
-      cutoff.
-    </p>
-
     <h4>The setting</h4>
     <p>
-      Physically based fire animation produces sound by solving a
-      <em>linearised wave equation</em> on a 3D grid surrounding the flame,
-      driven by a source term derived from the combustion (typically the
-      time derivative of the heat release rate; see Chadwick &amp; James
-      2011, &sect;3). The output is a pressure signal at a virtual
-      microphone position.
+      A physically based flame simulator reproduces visual fire
+      behavior convincingly but doesn't directly produce sound: time-
+      stepping a 3D combustion simulation at audio sample rates is
+      impractically expensive, and small-scale combustion noise comes
+      from thermo-acoustics that those simulators don't resolve at
+      typical resolutions (Chadwick &amp; James 2011, &sect;1).
     </p>
     <p>
-      The simulation cost grows quickly with the spatial Nyquist frequency,
-      so production-quality flame simulations are run at a coarse grid
-      and the resulting sound is band-limited to roughly the first
-      hundred or two hundred Hz. Real fire is broadband (audible content
-      out to several kHz), so this band-limited signal sounds dull and
-      "wave-like" rather than crackling. The job of <strong>spectral
-      bandwidth extension</strong> (Algorithm 1, &sect;4 of the paper) is
-      to fill in the missing mid and high frequencies in a way that
-      sounds plausible and stays time-locked to the simulated bursts.
+      The paper's workaround (&sect;&sect;2.2, 3) is a simplified
+      analytical sound model. Combustion noise can be derived from a
+      wave equation forced by the rate of change of the heat release
+      rate (Crighton et al. 1992; equation 2 in the paper). Under the
+      premixed-flame assumption (Strahle 1972), the heat release
+      happens essentially at the moving flame front, so the volume
+      integral over the combustion region can be rewritten as a
+      surface integral over that front. Ignoring propagation delays,
+      1/<em>r</em> distance attenuation, and overall scaling constants
+      (all fixed multiplicative factors at a chosen listener
+      position), the radiated pressure reduces to
+      <span class="eq-inline">p(t) = d/dt &int;<sub>S(t)</sub>
+      <strong>u</strong>(<strong>x</strong>, t) &middot;
+      <strong>n</strong>(<strong>x</strong>, t) dS</span>
+      (equation 6), the time derivative of the velocity flux integrated
+      over the moving flame front. This is also proportional to the
+      time derivative of the total heat release rate.
+    </p>
+    <p>
+      The flame solver runs at hundreds of steps per second (360 Hz
+      for the paper's examples). After interpolating its pressure
+      output up to audio sample rate, the resulting signal is band-
+      limited to roughly the simulation's Nyquist (&asymp; 180 Hz):
+      a slow-envelope rumble that captures the flame's overall
+      rate of activity but contains essentially no audible structure
+      above that. Real fire is broadband (audible content out to
+      several kHz), so the simulated signal alone sounds dull rather
+      than crackling. The job of
+      <strong>spectral bandwidth extension</strong> (Algorithm 1,
+      &sect;4 of the paper) is to fill in the missing mid and high
+      frequencies in a way that sounds plausible and stays time-
+      locked to the simulated bursts.
     </p>
 
     <h4>Why &ldquo;partially&rdquo; physically based</h4>
     <p>
       The low-frequency input <em>is</em> physical: it comes from the
-      wave-equation solve. The high-frequency content added here is
-      <em>statistical</em>: random-phase noise whose power-spectral-density
-      (PSD) slope and time-varying amplitude are chosen to look right, not
-      derived from a wave-level model of small-scale flame turbulence. The
-      empirical justification is that real fire spectra are well
-      approximated by a power law
+      &sect;3 sound model derived above. The high-frequency content
+      added here is <em>statistical</em>: random-phase noise whose
+      power-spectral-density (PSD) slope and time-varying amplitude are
+      chosen to match measured fire spectra, not derived from a wave-
+      level model of small-scale flame turbulence. The empirical
+      justification is that real fire spectra are well approximated by
+      a power law
       <span class="eq-inline">P(f) &prop; f<sup>&minus;&alpha;</sup></span>
       over a wide band:
     </p>
@@ -347,14 +361,14 @@ POSSIBILITY OF SUCH DAMAGE.
     <h4>What the controls do</h4>
     <ul>
       <li>
-        <strong>&alpha;</strong> &mdash; the power-law PSD exponent.
+        <strong>&alpha;</strong>: the power-law PSD exponent.
         Larger values produce a darker high-frequency tail (more rolloff,
         less crackle); smaller values brighten it. Default 2.5; the
         physically motivated range from the cited measurements is
         roughly [2.0, 3.5].
       </li>
       <li>
-        <strong>cutoff f<sub>c</sub></strong> &mdash; the centre of the
+        <strong>cutoff f<sub>c</sub></strong>: the centre of the
         crossover. Above <span class="eq-inline">f<sub>c</sub></span> the
         output increasingly comes from noise; below
         <span class="eq-inline">f<sub>c</sub></span> it increasingly comes
@@ -363,7 +377,7 @@ POSSIBILITY OF SUCH DAMAGE.
         of it with noise.
       </li>
       <li>
-        <strong>window half-width</strong> (samples) &mdash; the analysis
+        <strong>window half-width</strong> (samples): the analysis
         window covers <em>2&times;halfWidth+1</em> samples and the loop
         strides by <em>halfWidth</em> (50&nbsp;% overlap). Smaller windows
         let <span class="eq-inline">&beta;</span> track fast envelope
@@ -371,14 +385,14 @@ POSSIBILITY OF SUCH DAMAGE.
         per-window frequency resolution.
       </li>
       <li>
-        <strong>Gaussian fit width</strong> (Hz) &mdash; the full width of
+        <strong>Gaussian fit width</strong> (Hz): the full width of
         the matching kernel; its standard deviation is one-third of this
         value. A narrow kernel matches the spectra essentially at
         <span class="eq-inline">f<sub>c</sub></span> only; a wider kernel
         averages over a broader band of the spectrum.
       </li>
       <li>
-        <strong>blend half-width</strong> (Hz) &mdash; the linear ramp
+        <strong>blend half-width</strong> (Hz): the linear ramp
         between <span class="eq-inline">blend<sub>1</sub></span> and
         <span class="eq-inline">blend<sub>2</sub></span> spans
         <em>2&times;blend_half_width</em>, centred on
@@ -386,7 +400,7 @@ POSSIBILITY OF SUCH DAMAGE.
         a sharper crossover; larger values give a gentler one.
       </li>
       <li>
-        <strong>noise amplitude</strong> &mdash; an extra global multiplier
+        <strong>noise amplitude</strong>: an extra global multiplier
         on the noise contribution after the
         <span class="eq-inline">&beta;</span> match. 0 disables the
         high-frequency content entirely (you hear only the lowpassed
@@ -395,7 +409,7 @@ POSSIBILITY OF SUCH DAMAGE.
         on its own.
       </li>
       <li>
-        <strong>RNG seed</strong> &mdash; integer seed for the shared
+        <strong>RNG seed</strong>: integer seed for the shared
         PCG32 random-phase generator. The same seed produces the same
         phase array in both this JavaScript port and the Python reference,
         so the two implementations agree on the extended waveform up to
@@ -403,7 +417,7 @@ POSSIBILITY OF SUCH DAMAGE.
         validate.html test).
       </li>
       <li>
-        <strong>match Matlab reference</strong> (checkbox) &mdash; if
+        <strong>match Matlab reference</strong> (checkbox): if
         ticked, every per-window FFT runs at the full signal length
         (<span class="eq-inline">N<sub>FFT</sub> = next_pow2(L)</span>),
         bit-for-bit matching the published Matlab code. Off (the default)
@@ -546,10 +560,10 @@ POSSIBILITY OF SUCH DAMAGE.
   </div>
 </footer>
 
-<script src="fft.js?v=11"></script>
-<script src="deterministic_rng.js?v=11"></script>
-<script src="bandwidth_extension.js?v=11"></script>
-<script src="main.js?v=11"></script>
+<script src="fft.js?v=15"></script>
+<script src="deterministic_rng.js?v=15"></script>
+<script src="bandwidth_extension.js?v=15"></script>
+<script src="main.js?v=15"></script>
 
 </body>
 </html>

@@ -1,0 +1,85 @@
+#
+from glob import glob
+import os
+env = Environment(ENV = {'PATH' : os.environ['PATH'],
+												 'TERM' : os.environ['TERM'],
+												 'HOME' : os.environ['HOME'],
+												 'CPATH' : os.environ['CPATH'],
+												 'LIBRARY_PATH' : os.environ['LIBRARY_PATH']})
+
+#-------------------------------
+# Parse arguments
+#-------------------------------
+buildDebug = int(ARGUMENTS.get('debug', 0)) == 1
+usingMKL = int(ARGUMENTS.get('mkl', 0)) == 1
+usingICC = int(ARGUMENTS.get('icc', 0)) == 1
+
+#-------------------------------
+# Add include paths
+#-------------------------------
+
+# Add the ANN library to the build
+include_paths = [ os.environ['ANNINC'] ];
+env.Append(CPPPATH=include_paths)
+lib_paths = [ os.environ['ANNLIB'] ];
+env.Append(LIBPATH=lib_paths)
+env.Append(LIBS=['ANN'])
+
+if usingMKL:
+	env.Append(CPPPATH=os.environ['MKLINC'])
+	env.Append(LIBS=['mkl_intel_lp64', 'mkl_intel_thread', 'mkl_core', 'iomp5', 'pthread'])
+	env.Append(LIBPATH=os.environ['MKLLIB'])
+	env.Append(CCFLAGS=['-DUSE_MKL'])
+	env.Append(LD_LIBRARY_PATH=os.environ['MKLLIB'])
+
+if usingICC:
+	env.Replace(CXX='icpc')
+	env.Replace(CC='icc')
+
+#-------------------------------
+# Utility functions
+#-------------------------------
+
+def all_srcs_in_folders(lib_folders):
+	sourceFiles = [ Glob(folder + '/*.c') for folder in lib_folders ]
+	sourceFiles = sourceFiles + [ Glob(folder + '/*.cpp') for folder in lib_folders ]
+	return sourceFiles
+
+#-------------------------------
+# Library sources. Sometimes, we can't just compile all the C/PP
+# files in a folder, so we have to pick them by hand here.
+#-------------------------------
+
+linalg_full_src = glob( 'linearalgebra/*.cpp' )
+linalg_full_set = set( linalg_full_src )
+if usingMKL:
+	linalg_exclude_set = set( [ 'linearalgebra/VECTOR_DEBUG.cpp' ] )
+else:
+	linalg_exclude_set = set( [ 'linearalgebra/VECTOR_FAST.cpp' ] )
+
+linalg_srcs = list( linalg_full_set - linalg_exclude_set )
+
+tinyxml_srcs = all_srcs_in_folders(['tinyxml'])
+
+#-------------------------------
+# Set up environment
+#-------------------------------
+include_paths = ['datastructure', 'linearalgebra', 'util','parser', 'tinyxml',
+                 'texture', '.']
+env.Append(CPPPATH = include_paths)
+
+if buildDebug:
+	env.Append(CCFLAGS = '-g')
+	env.Append(CCFLAGS = '-O0 -Wall')
+else:
+	env.Append(CCFLAGS = '-O3')
+
+#-------------------------------
+# Program: testwindowsynthesis
+#-------------------------------
+src_folders = [ 'util', 'parser', 'math', 'texture' ]
+env.Program( 'work/testwindowsynthesis',
+	[ 'testwindowsynthesis.cpp' ] + all_srcs_in_folders(src_folders)
+	+ linalg_srcs + tinyxml_srcs
+	)
+

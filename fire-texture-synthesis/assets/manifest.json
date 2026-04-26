@@ -1,0 +1,88 @@
+{
+  "sample_rate": 44100,
+  "format": "float32_le",
+  "examples": [
+    {
+      "name": "burning_brick",
+      "input_file": "burning_brick/input.bin",
+      "training_file": "burning_brick/training.bin",
+      "params_file": "burning_brick/default.json",
+      "input_samples": 220377,
+      "training_samples": 393254,
+      "input_duration_s": 4.997210884353741,
+      "training_duration_s": 8.917324263038548,
+      "training_basename": "training_data.vector"
+    },
+    {
+      "name": "candle",
+      "input_file": "candle/input.bin",
+      "training_file": "candle/training.bin",
+      "params_file": "candle/default.json",
+      "input_samples": 264477,
+      "training_samples": 448291,
+      "input_duration_s": 5.997210884353741,
+      "training_duration_s": 10.165328798185941,
+      "training_basename": "training_data.vector"
+    },
+    {
+      "name": "dragon",
+      "input_file": "dragon/input.bin",
+      "training_file": "dragon/training.bin",
+      "params_file": "dragon/default.json",
+      "input_samples": 396654,
+      "training_samples": 604463,
+      "input_duration_s": 8.994421768707483,
+      "training_duration_s": 13.706643990929706,
+      "training_basename": "training_data_1.vector"
+    },
+    {
+      "name": "flame_jet",
+      "input_file": "flame_jet/input.bin",
+      "training_file": "flame_jet/training.bin",
+      "params_file": "flame_jet/default.json",
+      "input_samples": 440877,
+      "training_samples": 670790,
+      "input_duration_s": 9.997210884353741,
+      "training_duration_s": 15.210657596371883,
+      "training_basename": "training_data.vector"
+    },
+    {
+      "name": "torch",
+      "input_file": "torch/input.bin",
+      "training_file": "torch/training.bin",
+      "params_file": "torch/default.json",
+      "input_samples": 220377,
+      "training_samples": 719241,
+      "input_duration_s": 4.997210884353741,
+      "training_duration_s": 16.309319727891157,
+      "training_basename": "training_data.vector"
+    }
+  ],
+  "training_audio": [
+    {
+      "file": "training_audio/FIRE_BurnGasFlames_SBPF1_044.wav",
+      "original_name": "FIRE BurnGasFlames SBPF1_044.wav"
+    },
+    {
+      "file": "training_audio/FIRE_FlameCandlePuffs_SBPF1_M187.wav",
+      "original_name": "FIRE FlameCandlePuffs SBPF1_M187.wav"
+    },
+    {
+      "file": "training_audio/FIRE_TorchBurstBurn_SBPF1_393.wav",
+      "original_name": "FIRE TorchBurstBurn SBPF1_393.wav"
+    },
+    {
+      "file": "training_audio/FIRE_TorchFlameMove_SBPF1_394.wav",
+      "original_name": "FIRE TorchFlameMove SBPF1_394.wav"
+    },
+    {
+      "file": "training_audio/FIRE_TorchFlameMove_SBPF1_395.wav",
+      "original_name": "FIRE TorchFlameMove SBPF1_395.wav"
+    },
+    {
+      "file": "training_audio/FIRE_WhooshesOilCan_SBPF1_454.wav",
+      "original_name": "FIRE WhooshesOilCan SBPF1_454.wav"
+    }
+  ],
+  "training_audio_credit": "Source: The Recordist 'Ultimate Fire' sound library (https://www.therecordist.com/). Used with permission inherited from the original release at https://www.cs.cornell.edu/projects/Sound/fire/. All copyright in the audio remains with The Recordist."
+}

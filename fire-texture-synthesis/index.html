@@ -1,0 +1,595 @@
+<!--
+This file is a derivative work of the C++ implementation released
+alongside Chadwick and James, "Animating Fire with Sound," SIGGRAPH 2011.
+See https://www.cs.cornell.edu/projects/Sound/fire/ for the original.
+
+Original copyright notice (preserved per BSD 2-Clause):
+
+Copyright (c) 2011, Jeffrey Chadwick
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+- Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire Sound Texture Synthesis: Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<p class="nav"><a href="../index.html">&larr; Demo gallery</a></p>
+
+<h1>Fire Sound Texture Synthesis</h1>
+<p class="subtitle">
+  Stitch high-frequency content from a real fire-audio recording onto a
+  low-frequency, physically based fire-simulation signal using a
+  multi-resolution texture synthesis search.
+</p>
+<p class="citation">
+  Algorithm 2, &sect;5 of Chadwick &amp; James,
+  <a href="https://www.cs.cornell.edu/projects/Sound/fire/">Animating Fire with Sound</a>
+  (SIGGRAPH 2011) &middot;
+  <a href="docs/2011%20Chadwick%20-%20Fire%20Sound_rekt.pdf">paper PDF</a> &middot;
+  <a href="ATTRIBUTION.html">attribution</a> &middot;
+  <a href="tests/validate.html">parity check</a> &middot;
+  Companion demo: <a href="../fire-bandwidth-extension/">spectral bandwidth extension</a>
+</p>
+
+<div id="banner" hidden></div>
+
+<section>
+  <h2>Example signal pair</h2>
+  <div class="example-row" id="example-row">
+    <button data-builtin="synthetic">Synthetic burst &middot; pink noise</button>
+    <!-- Bundled-example buttons inserted dynamically from manifest -->
+    <label for="base-input">Load base WAV&hellip;</label>
+    <input type="file" id="base-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
+    <label for="training-input">Load training WAV&hellip;</label>
+    <input type="file" id="training-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
+    <span class="hint" id="current-name">&nbsp;</span>
+  </div>
+  <p class="hint-text" style="font-size:0.78rem; color:#555; margin-top:0.5rem;">
+    Pick a flame-simulation example (each preset bundles its hand-picked
+    training audio), or load your own base + training WAVs. Each click
+    re-runs the synthesis. Adjust the sliders below and hit
+    <strong>Synthesize</strong>.
+  </p>
+</section>
+
+<section>
+  <h2>Algorithm parameters</h2>
+  <div class="controls">
+    <div class="ctrl">
+      <label><span>numLevels (pyramid depth)</span><span class="val" id="val-num_levels">6</span></label>
+      <input type="range" id="slider-num_levels">
+    </div>
+    <div class="ctrl">
+      <label><span>windowHW (output window half-width)</span><span class="val" id="val-window_hw">4</span></label>
+      <input type="range" id="slider-window_hw">
+    </div>
+    <div class="ctrl">
+      <label><span>featureHW (feature context half-width)</span><span class="val" id="val-feature_hw">3</span></label>
+      <input type="range" id="slider-feature_hw">
+    </div>
+    <div class="ctrl">
+      <label><span>falloff (exponential weight)</span><span class="val" id="val-falloff">0.00</span></label>
+      <input type="range" id="slider-falloff">
+    </div>
+    <div class="ctrl">
+      <label><span>scalingAlpha (CDF blend)</span><span class="val" id="val-scaling_alpha">1.00</span></label>
+      <input type="range" id="slider-scaling_alpha">
+    </div>
+    <div class="ctrl">
+      <label><span>RNG seed (tie-breaking)</span><span class="val" id="val-seed">42</span></label>
+      <input type="range" id="slider-seed">
+    </div>
+    <div class="ctrl">
+      <label><span>scaleCDF (dynamic-range mapping)</span><span class="val">&nbsp;</span></label>
+      <label style="font-size: 0.85rem; color: var(--text); display: flex; align-items: center; gap: 0.4rem;">
+        <input type="checkbox" id="scale-cdf" checked>
+        <span>enabled (recommended)</span>
+      </label>
+    </div>
+    <div class="ctrl"
+         title="(1+epsilon) approximate nearest-neighbour: 0 = exact (deterministic, slow); higher values prune the KD-tree more aggressively for speed. The released C++ defaults to 1.0; setting this >0 typically halves synthesis time with imperceptible audio difference.">
+      <label><span>epsANN (NN approximation)</span><span class="val" id="val-eps_ann">5.00</span></label>
+      <input type="range" id="slider-eps_ann">
+    </div>
+  </div>
+  <div class="controls-actions">
+    <button id="process-btn">Synthesize</button>
+    <button id="reset-btn" class="secondary">Reset to paper defaults</button>
+    <label class="auto-process-toggle" title="Re-process automatically when a slider changes">
+      <input type="checkbox" id="auto-process"> auto-process
+    </label>
+    <div class="progress"><div id="progress-bar"></div></div>
+    <span class="status" id="process-status">idle</span>
+  </div>
+</section>
+
+<section class="spec-and-playback">
+  <div class="spectrum-pane">
+    <h2>Spectra (input vs training vs output)</h2>
+    <div class="spectrum-canvas-wrap">
+      <canvas id="spectrum-canvas"></canvas>
+    </div>
+    <div class="spectrum-legend">
+      <span><span class="swatch line blue"></span> base PSD</span>
+      <span><span class="swatch line amber"></span> training PSD</span>
+      <span><span class="swatch line green"></span> synthesized output PSD</span>
+    </div>
+  </div>
+  <div class="playback-pane">
+    <h2>Playback</h2>
+    <div class="player" id="player-original">
+      <h3>Base (input)</h3>
+      <div class="player-row">
+        <button class="play">Play</button>
+        <button class="stop">Stop</button>
+        <input type="range" min="0" max="1" step="0.001" value="0">
+        <button class="download" title="Download as 16-bit WAV">DL</button>
+      </div>
+      <div class="meta">(no signal loaded)</div>
+    </div>
+    <div class="player" id="player-training">
+      <h3>Training</h3>
+      <div class="player-row">
+        <button class="play">Play</button>
+        <button class="stop">Stop</button>
+        <input type="range" min="0" max="1" step="0.001" value="0">
+        <button class="download" title="Download as 16-bit WAV">DL</button>
+      </div>
+      <div class="meta">(no signal loaded)</div>
+    </div>
+    <div class="player" id="player-extended">
+      <h3>Synthesized</h3>
+      <div class="player-row">
+        <button class="play">Play</button>
+        <button class="stop">Stop</button>
+        <input type="range" min="0" max="1" step="0.001" value="0">
+        <button class="download" title="Download as 16-bit WAV">DL</button>
+      </div>
+      <div class="meta">(not yet synthesized)</div>
+    </div>
+  </div>
+</section>
+
+<section class="pyramid-stack">
+  <h2>Output pyramid (coarsest at top)</h2>
+  <div id="pyramid-rows"></div>
+</section>
+
+<section class="specs">
+  <h2>Spectrograms</h2>
+  <div class="spec-block">
+    <h3>Base input</h3>
+    <div class="spec-canvas-wrap"><canvas id="spec-input"></canvas></div>
+  </div>
+  <div class="spec-block">
+    <h3>Synthesized</h3>
+    <div class="spec-canvas-wrap"><canvas id="spec-output"></canvas></div>
+  </div>
+  <div class="spec-block">
+    <h3>Training</h3>
+    <div class="spec-canvas-wrap"><canvas id="spec-training"></canvas></div>
+  </div>
+</section>
+
+<details>
+  <summary>About this sound model</summary>
+  <div class="info-content">
+
+    <h4>The problem</h4>
+    <p>
+      Real fire is a broadband sound: crackling and hissing
+      out to several kilohertz. A physically based flame simulator
+      reproduces visual fire behavior convincingly but doesn't
+      directly produce sound: time-stepping a 3D combustion simulation
+      at audio sample rates is impractically expensive, and small-
+      scale combustion noise comes from thermo-acoustics that those
+      simulators don't resolve at typical resolutions
+      (Chadwick &amp; James 2011, &sect;1).
+    </p>
+    <p>
+      The paper's workaround (&sect;&sect;2.2, 3) is a simplified
+      analytical sound model. Combustion noise can be derived from a
+      wave equation forced by the rate of change of the heat release
+      rate (Crighton et al. 1992; equation 2 in the paper). Under the
+      premixed-flame assumption (Strahle 1972), the heat release
+      happens essentially at the moving flame front, so the volume
+      integral over the combustion region can be rewritten as a
+      surface integral over that front. Ignoring propagation delays,
+      1/<em>r</em> distance attenuation, and overall scaling constants
+      (all fixed multiplicative factors at a chosen listener
+      position), the radiated pressure reduces to
+      <span class="eq-inline">p(t) = d/dt &int;<sub>S(t)</sub>
+      <strong>u</strong>(<strong>x</strong>, t) &middot;
+      <strong>n</strong>(<strong>x</strong>, t) dS</span>
+      (equation 6), the time derivative of the velocity flux integrated
+      over the moving flame front. This is also proportional to the
+      time derivative of the total heat release rate.
+    </p>
+    <p>
+      The flame solver runs at hundreds of steps per second (360 Hz
+      for the paper's examples). After interpolating its pressure
+      output up to audio sample rate, the resulting signal is band-
+      limited to roughly the simulation's Nyquist (&asymp; 180 Hz):
+      a slow-envelope rumble that captures the flame's overall
+      rate of activity but contains essentially no audible structure
+      above that. This is the "low-frequency, physically based pressure
+      signal" the paper takes as input to its bandwidth-extension and
+      texture-synthesis algorithms (&sect;&sect;4&ndash;5). The
+      simulated signal alone therefore sounds dull rather than
+      crackling, even when the visuals are perfect.
+    </p>
+    <p>
+      The companion <strong>spectral bandwidth extension</strong> demo
+      (<a href="../fire-bandwidth-extension/">link</a>) fills in the
+      missing high frequencies with synchronized power-law noise that
+      matches theoretical and experimental flame spectra
+      (&sect;4 of the paper). <strong>This</strong> demo takes the
+      paper's other approach: it borrows the high-frequency structure
+      from a real fire-audio recording (the "training" signal),
+      via the texture-synthesis algorithm of &sect;5. Quoting
+      the paper: "By varying the flame sounds used for input training
+      data, users can control the style of synthesized sounds, while
+      retaining synchronization with simulated flames."
+    </p>
+
+    <h4>Why &ldquo;data-driven, partially physically based&rdquo;</h4>
+    <p>
+      The low-frequency input is physical: it comes from the &sect;3
+      sound model derived above. The high-frequency content comes from
+      sampling a real recording: the synthesized output's
+      micro-structure is drawn from training audio rather than
+      predicted from physics. Bursts in the input (loud combustion
+      events) drive bursts in the output because the multi-resolution
+      search at the top pyramid level locks the synthesized envelope
+      to the input's, and the optional <em>dynamic-range mapping</em>
+      (&sect;5.3) further re-scales training amplitudes so the output's
+      loudness distribution matches the input's.
+    </p>
+
+    <h4>How the algorithm works</h4>
+    <ol>
+      <li>
+        <strong>Pyramids.</strong> Pad each signal to length
+        <span class="eq-inline">2<sup>k</sup>+1</span>; build a
+        <span class="eq-inline">numLevels</span>-level Gaussian pyramid
+        (default 6) using the 5-tap stencil
+        <span class="eq-inline">[0.05, 0.25, 0.40, 0.25, 0.05]</span>
+        and 2:1 decimation. The coarsest level holds the slow
+        envelope; each lower level adds finer detail. The training
+        signal's pyramid is built with reflected boundaries; the
+        base signal's pyramid is zero-padded.
+      </li>
+      <li>
+        <strong>CDF init.</strong> If <code>scaleCDF</code> is on,
+        sort the absolute amplitudes of the top pyramid level for both
+        signals. These sorted arrays are the input/output CDFs used
+        below.
+      </li>
+      <li>
+        <strong>Training-feature dictionaries.</strong> For each
+        non-top pyramid level <span class="eq-inline">&ell;</span>,
+        build a feature vector from each training-signal window. Each
+        feature has two regions: <em>causal context</em> from level
+        <span class="eq-inline">&ell;</span> immediately to the left
+        of the window (16 samples by default), and <em>coarser
+        context</em> from level <span class="eq-inline">&ell;+1</span>
+        symmetrically around the window (33 linearly-interpolated
+        samples by default). All features are stored in a KD-tree for
+        fast nearest-neighbour lookup.
+      </li>
+      <li>
+        <strong>Initialise the output pyramid</strong> to the input
+        pyramid, then zero every level except the top (so the output's
+        coarse envelope is the input's).
+      </li>
+      <li>
+        <strong>Coarse-to-fine synthesis.</strong> For
+        <span class="eq-inline">&ell; = numLevels-2, numLevels-3, &hellip;, 0</span>,
+        for each output window:
+        <ol>
+          <li>
+            Build a feature vector from already-synthesized samples
+            (causal) and the next-coarser level (which is fully
+            synthesized at this point of the loop).
+          </li>
+          <li>
+            <strong>If &ell;+1 is the top level and scaleCDF is on:</strong>
+            compute the average magnitude of the coarser-level feature
+            entries; find that average's percentile in the
+            <em>base</em>-signal CDF
+            <span class="eq-inline">F<sub>S</sub></span>; look up the
+            matching amplitude in the <em>training</em> CDF
+            <span class="eq-inline">F<sub>T</sub></span>; the ratio
+            <span class="eq-inline">r = trainingAmp / averageMag</span>
+            is the per-window scale factor (paper &sect;5.3,
+            equation 7). Blend
+            <span class="eq-inline">r</span> with
+            <span class="eq-inline">scalingAlpha</span> for partial
+            mapping. Multiply the coarser feature entries by
+            <span class="eq-inline">r</span> so the NN search runs in
+            a normalised space, and remember
+            <span class="eq-inline">1/r</span> so the matched training
+            window can be scaled back to the right amplitude when it's
+            blended into the output.
+          </li>
+          <li>
+            <strong>Find the nearest training window</strong> in
+            level <span class="eq-inline">&ell;</span>'s KD-tree.
+          </li>
+          <li>
+            <strong>Add</strong> that training window into the output
+            level via a triangular hat-function blend, scaled by
+            <span class="eq-inline">1/r</span> (or 1 if scaleCDF is
+            off, or if &ell;+1 is not the top level).
+          </li>
+        </ol>
+      </li>
+      <li>
+        <strong>Reconstruction.</strong> The output is the bottom level
+        of the output pyramid, trimmed to the original sample range.
+      </li>
+    </ol>
+
+    <h4>What the controls do</h4>
+    <ul>
+      <li>
+        <strong>numLevels</strong>: pyramid depth. More levels
+        means a coarser top level (slower envelope) and more detail
+        layers; default 6 (top-level Nyquist &asymp; 1.4&nbsp;kHz at
+        44.1&nbsp;kHz).
+      </li>
+      <li>
+        <strong>windowHW</strong> (samples): output window
+        half-width at every level. Smaller windows let the synthesis
+        switch training contexts more often; larger windows are smoother
+        but blockier.
+      </li>
+      <li>
+        <strong>featureHW</strong> (samples): feature context
+        half-width. The feature vector at level <span
+        class="eq-inline">&ell;</span> has
+        <span class="eq-inline">windowHW &middot; featureHW + 1</span>
+        causal samples plus <span class="eq-inline">2 &middot; windowHW
+        &middot; (featureHW + 1) + 1</span> coarser samples. With the
+        defaults (4 / 3) that's 13 + 33 = 46 dims.
+      </li>
+      <li>
+        <strong>falloff</strong>: exponential weight on feature
+        dimensions: <span class="eq-inline">exp(&minus;falloff &middot;
+        |distance|)</span>. 0 (the paper default) means uniform; large
+        values bias the NN search toward local context.
+      </li>
+      <li>
+        <strong>scalingAlpha</strong>: how aggressively the CDF
+        mapping rescales training amplitudes. 0 disables it (same as
+        unticking <code>scaleCDF</code>); 1 is the paper default.
+      </li>
+      <li>
+        <strong>scaleCDF</strong>: master toggle for
+        section 5.3 dynamic-range mapping.
+      </li>
+      <li>
+        <strong>RNG seed</strong>: integer seed for the shared
+        PCG32 generator. Used here only for tie-breaking; on these
+        signals you'll rarely see it change the output.
+      </li>
+      <li>
+        <strong>epsANN</strong>: nearest-neighbour approximation
+        tolerance. The browser demo defaults to 5.0, which prunes the
+        KD-tree very aggressively and is roughly 5-10&times; faster
+        than exact search. The perceptual difference vs exact NN is
+        below the noise floor on the bundled examples; in fact, on
+        torch and candle, exact NN produces a tonal buzz that
+        approximation actually breaks (see the failure-mode discussion
+        below). The original C++ release defaults to 1.0. Set the
+        slider to 0 for exact NN (deterministic, matches the Python
+        reference bit-for-bit; the Tier 2 goldens always use 0).
+      </li>
+    </ul>
+
+    <h4>Things to notice</h4>
+    <ul>
+      <li>
+        Pick the <strong>Dragon</strong> example and toggle
+        <strong>scaleCDF</strong> on/off: with it on, the loud "fire-
+        breathing" bursts of the input drive correspondingly loud
+        bursts in the output (CDF mapping pumps amplitude to match);
+        with it off, the output is more uniformly textured.
+      </li>
+      <li>
+        Drag <strong>scalingAlpha</strong> from 0 to 1: at 0 you hear
+        the training texture untouched; at 1 it's been re-scaled to
+        match the input's amplitude statistics.
+      </li>
+      <li>
+        Compare the same flame in this demo with the
+        <strong>spectral bandwidth extension</strong> demo
+        (<a href="../fire-bandwidth-extension/">link</a>). The
+        bandwidth-extension version is "synthetic crackle" matched to
+        the envelope; this version is "real recorded crackle" matched
+        to the envelope. They're often perceptually similar, but the
+        texture-synthesised version has temporal events (pops, micro-
+        rumbles) that pure power-law noise can't reproduce.
+      </li>
+      <li>
+        Watch the <strong>output pyramid</strong> waveforms: the top
+        level (coarsest) is the input's slow envelope; each lower
+        level is a higher-octave detail layer added by the synthesis
+        loop.
+      </li>
+      <li>
+        Watch the <strong>spectra</strong> plot: the output PSD (green)
+        should sit roughly between the base PSD (blue) at low
+        frequencies and the training PSD (orange) at high frequencies,
+        with a smooth crossover that's chosen automatically by the
+        coarse-to-fine search.
+      </li>
+    </ul>
+
+    <h4>A failure mode of the CDF mapping</h4>
+    <p>
+      The dynamic-range mapping in &sect;5.3 multiplies matched
+      training windows by a per-window scale factor so the output's
+      amplitude statistics track the input's. When the input has a
+      much wider dynamic range than the training data, those scale
+      factors get large; consecutive windows tend to receive similar
+      large factors; the triangular overlap-add then reinforces them
+      constructively into a tonal buzz at the windowHW stride
+      frequency. The paper itself flags this in &sect;6 (&ldquo;...the
+      method still has difficulty producing a suitable, temporally
+      coherent output sound. This can occur in cases when the
+      low-frequency input has a very wide dynamic range, while the
+      training data has a small range&rdquo;).
+    </p>
+    <p>
+      Among the bundled examples, both <strong>torch</strong> and
+      <strong>candle</strong> hit this pathology at
+      <span class="eq-inline">scalingAlpha = 1.0</span> (the C++
+      release default). The demo therefore loads them with
+      <span class="eq-inline">scalingAlpha = 0.5</span>, which blends
+      in half the rescale and avoids the artefact while keeping the
+      qualitative dynamic-range matching the algorithm wants. Drag the
+      slider back to 1.0 on either example to hear the buzz; drag down
+      to 0.0 to hear the texture without any rescale at all. The other
+      three examples (burning_brick, dragon, flame_jet) ship at the
+      canonical 1.0.
+    </p>
+
+    <h4>Caveats and things this model is not</h4>
+    <ul>
+      <li>
+        The output's high-frequency content is borrowed from the
+        training signal, not predicted by physics. If you train on a
+        candle, your dragon's roar will sound suspiciously candle-like
+        at high frequencies. The paper frames this as a feature: by
+        choosing the training clip you choose the texture, while
+        keeping the simulator's envelope. Picking training audio that
+        matches your scene is part of the artistic process.
+      </li>
+      <li>
+        Two simulations with very different small-scale combustion
+        structure but the same envelope will sound similar. If your
+        application depends on the high-frequency physics, this
+        synthesis step is not the right tool.
+      </li>
+      <li>
+        The browser demo uses approximate nearest-neighbour
+        (<span class="eq-inline">epsANN = 5.0</span> by default), as
+        does the released C++ (which uses the
+        <a href="https://www.cs.umd.edu/~mount/ANN/">ANN library</a>
+        with <span class="eq-inline">epsANN = 1.0</span>). The
+        <a href="tests/validate.html">parity check</a> runs both ports
+        with <span class="eq-inline">epsANN = 0</span> (exact NN) and
+        verifies they match within FFT round-off.
+      </li>
+      <li>
+        Defaults match each example's bundled <code>default.xml</code>:
+        <span class="eq-inline">numLevels=6, windowHW=4, featureHW=3,
+        falloff=0, scaleCDF=1, scalingAlpha=1</span>. Two examples
+        ship with a per-demo override
+        <span class="eq-inline">scalingAlpha=0.5</span>
+        (<strong>torch</strong> and <strong>candle</strong>) to avoid
+        the CDF-mapping pathology described above. The Reset button
+        restores each example's bundled defaults.
+      </li>
+    </ul>
+
+    <h4>References</h4>
+    <ol>
+      <li class="ref">
+        Chadwick, J. N., and James, D. L. (2011). <em>Animating Fire
+        with Sound.</em> ACM Transactions on Graphics (SIGGRAPH 2011),
+        30(4).
+        <a href="https://www.cs.cornell.edu/projects/Sound/fire/">cs.cornell.edu/projects/Sound/fire</a>
+        &middot;
+        <a href="https://www.cs.cornell.edu/projects/Sound/fire/FireSound2011.pdf">paper PDF</a>
+      </li>
+      <li class="ref">
+        Wei, L.-Y., and Levoy, M. (2000). <em>Fast texture synthesis
+        using tree-structured vector quantization.</em> SIGGRAPH 2000,
+        479&ndash;488. <em>(parent multi-resolution texture synthesis
+        algorithm.)</em>
+      </li>
+      <li class="ref">
+        Burt, P. J., and Adelson, E. H. (1983). <em>A multiresolution
+        spline with application to image mosaics.</em> ACM TOG, 2(4),
+        217&ndash;236. <em>(Gaussian pyramid construction.)</em>
+      </li>
+      <li class="ref">
+        Heeger, D. J., and Bergen, J. R. (1995). <em>Pyramid-based
+        texture analysis/synthesis.</em> SIGGRAPH 1995, 229&ndash;238.
+        <em>(source of the histogram-matching technique adapted in
+        &sect;5.3.)</em>
+      </li>
+      <li class="ref">
+        Training audio courtesy of <a href="https://www.therecordist.com/">The Recordist</a>'s
+        <em>Ultimate Fire</em> sound library, redistributed under the
+        permission inherited from the original Cornell release.
+      </li>
+    </ol>
+
+  </div>
+</details>
+
+<footer>
+  Sound texture synthesis algorithm by
+  <strong>Jeffrey N. Chadwick</strong> and <strong>Doug L. James</strong>,
+  Cornell University. Training audio courtesy of
+  <a href="https://www.therecordist.com/">The Recordist</a>'s
+  <em>Ultimate Fire</em> sound library, used with permission. JavaScript
+  demo by Claude Code, for CS 448Z, Stanford University, Spring 2026.
+  <div class="links">
+    <a href="https://www.cs.cornell.edu/projects/Sound/fire/">Cornell project page</a>
+    <a href="https://www.cs.cornell.edu/projects/Sound/fire/FireSound2011.pdf">Paper PDF (cornell.edu)</a>
+    <a href="docs/2011%20Chadwick%20-%20Fire%20Sound_rekt.pdf">Paper PDF (local)</a>
+    <a href="ATTRIBUTION.html">Attribution</a>
+    <a href="LICENSE">License (BSD-2-Clause)</a>
+    <a href="docs/DEMO_DISCLAIMER.md">Disclaimer</a>
+    <a href="../fire-bandwidth-extension/">Companion: spectral bandwidth extension</a>
+  </div>
+  <div class="disclaimer">
+    This demo was created using Claude Code (Anthropic). As AI-assisted
+    work, it warrants independent review and may contain errors. It is
+    provided "as is" for educational purposes only, with no warranty
+    of any kind. It does not represent an official Stanford University
+    product or endorsement. Do not rely on it for safety-critical
+    applications, engineering decisions, medical or legal guidance, or
+    any purpose where inaccuracies could cause harm.
+  </div>
+</footer>
+
+<script src="kdtree.js?v=12"></script>
+<script src="deterministic_rng.js?v=12"></script>
+<script src="texture_synthesis.js?v=12"></script>
+<script src="fft.js?v=12"></script>
+<script src="main.js?v=12"></script>
+
+</body>
+</html>

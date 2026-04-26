@@ -1,0 +1,273 @@
+/*
+ * This file is a derivative work of the C++ implementation released
+ * alongside Chadwick and James, "Animating Fire with Sound," SIGGRAPH 2011.
+ * See https://www.cs.cornell.edu/projects/Sound/fire/ for the original.
+ *
+ * Copyright (c) 2011, Jeffrey Chadwick. All rights reserved.
+ * BSD 2-Clause License (see ./LICENSE).
+ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f5f5;
+  --panel: #ffffff;
+  --border: #d8d8d8;
+  --accent: #2563eb;
+  --accent-soft: #eef2ff;
+  --text: #1a1a1a;
+  --muted: #555;
+  --warn: #b1300d;
+  --grid: #e3e3ee;
+}
+html, body { background: var(--bg); color: var(--text); }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  padding: 1.5rem 1rem 3rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+h1 { font-size: 1.55rem; margin-bottom: 0.2rem; }
+.subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.4rem; }
+.citation { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+.citation a { color: var(--accent); }
+.nav { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.6rem; }
+.nav a { color: var(--accent); text-decoration: none; }
+section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+h2 { font-size: 1rem; margin-bottom: 0.6rem; }
+
+#banner {
+  background: #fff5f0;
+  border: 1px solid #f1bb9b;
+  color: #9b3e0d;
+  padding: 0.7rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+#banner code {
+  background: rgba(0,0,0,0.05);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+#banner.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.example-row {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+}
+.example-row button, .example-row label {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 0.35rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.example-row button.active {
+  background: var(--accent); color: #fff;
+}
+.example-row input[type="file"] { display: none; }
+.example-row .hint {
+  font-size: 0.8rem; color: var(--muted); margin-left: auto;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem 1.1rem;
+}
+.ctrl { display: grid; grid-template-columns: 1fr; }
+.ctrl label {
+  font-size: 0.8rem; color: var(--muted); display: flex;
+  justify-content: space-between; margin-bottom: 0.15rem;
+}
+.ctrl label span.val { color: var(--text); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.78rem; }
+.ctrl input[type="range"] { width: 100%; }
+.ctrl input[type="number"] { width: 5rem; padding: 0.15rem 0.3rem; }
+
+.controls-actions {
+  display: flex; gap: 0.6rem; align-items: center; margin-top: 0.8rem;
+  flex-wrap: wrap;
+}
+.controls-actions button {
+  background: var(--accent); color: #fff; border: 0;
+  padding: 0.45rem 1rem; border-radius: 4px; cursor: pointer;
+  font-size: 0.9rem;
+}
+.controls-actions button:disabled { background: #aaa; cursor: progress; }
+.controls-actions button.secondary {
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
+}
+.controls-actions .auto-process-toggle {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.8rem; color: var(--muted); white-space: nowrap;
+  cursor: pointer;
+}
+.controls-actions .progress {
+  flex: 1; min-width: 100px; height: 8px; background: var(--accent-soft);
+  border-radius: 4px; overflow: hidden;
+}
+.controls-actions .progress > div {
+  height: 100%; background: var(--accent); width: 0%;
+  transition: width 0.15s linear;
+}
+.controls-actions .status { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.controls-actions .status.warn { color: var(--warn); }
+
+.spec-and-playback {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  gap: 1.1rem;
+}
+.spectrum-pane > h2,
+.playback-pane > h2 { margin-bottom: 0.4rem; }
+.spectrum-canvas-wrap {
+  width: 100%; height: 260px;
+  background: #1c1d2b; border-radius: 6px; overflow: hidden;
+}
+.spectrum-canvas-wrap canvas {
+  display: block; width: 100%; height: 100%;
+}
+.spectrum-legend {
+  display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem;
+  font-size: 0.72rem; color: var(--muted);
+  margin-top: 0.45rem;
+  align-items: center;
+}
+.spectrum-legend .swatch {
+  display: inline-block; vertical-align: middle; margin-right: 0.3rem;
+}
+.spectrum-legend .swatch.line { width: 16px; height: 0; border-top: 2px solid currentColor; }
+.spectrum-legend .blue   { color: #60a5fa; }
+.spectrum-legend .amber  { color: #f59e0b; }
+.spectrum-legend .green  { color: #22c55e; }
+
+.playback-pane .player { margin-bottom: 0.55rem; }
+.playback-pane .player:last-child { margin-bottom: 0; }
+.player {
+  background: #fafafe;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+}
+.player h3 { font-size: 0.8rem; margin-bottom: 0.3rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.player .player-row { display: flex; gap: 0.4rem; align-items: center; }
+.player button {
+  background: var(--accent); color: #fff; border: 0;
+  padding: 0.25rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem;
+}
+.player button:disabled { background: #ccc; cursor: not-allowed; }
+.player input[type="range"] { flex: 1; min-width: 30px; }
+.player .meta {
+  font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.pyramid-stack { padding: 0.6rem 1rem; }
+.pyramid-stack .level-row {
+  display: grid; grid-template-columns: 60px 1fr; align-items: center;
+  gap: 0.5rem; margin-bottom: 0.3rem;
+}
+.pyramid-stack .level-row:last-child { margin-bottom: 0; }
+.pyramid-stack .level-label {
+  font-size: 0.72rem; color: var(--muted);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  text-align: right;
+}
+.pyramid-stack canvas {
+  display: block; width: 100%; height: 28px;
+  background: #1c1d2b; border-radius: 3px;
+}
+
+.specs { padding: 0.6rem 1rem; }
+.spec-block { margin-top: 0.6rem; }
+.spec-block:first-of-type { margin-top: 0; }
+.spec-block h3 {
+  font-size: 0.78rem; color: var(--muted); margin-bottom: 0.2rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.spec-canvas-wrap {
+  position: relative; width: 100%; height: 180px;
+  background: #1c1d2b; border-radius: 4px; overflow: hidden;
+}
+.spec-canvas-wrap canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: block;
+}
+.spec-canvas-wrap .axis-label {
+  position: absolute; color: rgba(255,255,255,0.6); font-size: 0.65rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: rgba(0,0,0,0.35); padding: 0 4px; border-radius: 2px;
+}
+
+details {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1.05rem;
+  margin-top: 1rem;
+}
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  user-select: none;
+}
+details > summary:hover { color: var(--accent); }
+details[open] > summary { margin-bottom: 0.4rem; }
+.info-content { margin-top: 0.6rem; font-size: 0.88rem; color: #2a2a2a; line-height: 1.6; }
+.info-content p { margin-bottom: 0.55rem; }
+.info-content ul, .info-content ol { margin: 0.3rem 0 0.6rem 1.25rem; }
+.info-content li { margin-bottom: 0.25rem; }
+.info-content em { font-style: italic; }
+.info-content h4 { font-size: 0.92rem; margin: 0.85rem 0 0.3rem; color: #1a1a1a; }
+.info-content .ref { font-size: 0.82rem; color: #555; }
+.info-content .eq {
+  display: block;
+  margin: 0.4rem 0 0.4rem 1.25rem;
+  font-family: 'Times New Roman', 'Cambria', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+.info-content .eq-inline {
+  font-family: 'Times New Roman', 'Cambria', Georgia, serif;
+}
+.info-content code {
+  background: var(--accent-soft);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+
+footer {
+  margin-top: 1.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 0.8rem;
+  line-height: 1.55;
+}
+footer a { color: var(--muted); text-decoration: underline; }
+footer a:hover { color: var(--accent); }
+footer .links { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0.4rem 0; }
+footer .disclaimer {
+  font-size: 0.72rem; opacity: 0.8; margin-top: 0.5rem;
+  border-left: 2px solid var(--border); padding-left: 0.6rem;
+}
+
+@media (max-width: 760px) {
+  .spec-and-playback { grid-template-columns: 1fr; }
+}

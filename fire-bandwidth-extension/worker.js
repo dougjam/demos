@@ -42,7 +42,7 @@
 
 'use strict';
 
-importScripts('fft.js?v=11', 'deterministic_rng.js?v=11', 'bandwidth_extension.js?v=11');
+importScripts('fft.js?v=15', 'deterministic_rng.js?v=15', 'bandwidth_extension.js?v=15');
 
 self.addEventListener('message', (event) => {
   const { id, input, params } = event.data;

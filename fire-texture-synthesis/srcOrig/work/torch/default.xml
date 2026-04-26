@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<synthesis
+  basesignal="input_data.vector"
+  trainingsignal="training_data.vector"
+  Fs="44100"
+  numLevels="6"
+  windowHW="4"
+  featureHW="3"
+  epsANN="1.0"
+  falloff="0.00"
+  scaleCDF="1"
+  scalingAlpha="1.0"
+/>

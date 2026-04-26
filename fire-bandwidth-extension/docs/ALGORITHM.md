@@ -9,11 +9,13 @@ Canonical reference: <https://www.cs.cornell.edu/projects/Sound/fire/>
 
 ## Goal
 
-Given a low-frequency physically based pressure signal `p(t)` (the output
-of a wave-equation solve over a flame simulation; band-limited below
-&asymp; 200 Hz by simulation cost), synthesize a perceptually plausible
-broadband signal by adding mid- and high-frequency power-law noise that
-tracks the input envelope.
+Given a low-frequency physically based pressure signal `p(t)` (under
+the simplifying assumptions of paper &sect;3 it is the time derivative
+of the velocity flux through the moving flame front, equivalently the
+time derivative of the integrated heat release rate; band-limited to
+the flame solver's Nyquist, &asymp; 180 Hz at a 360 Hz time-stepping
+rate), synthesize a perceptually plausible broadband signal by adding
+mid- and high-frequency power-law noise that tracks the input envelope.
 
 The empirical justification for the `f^{-alpha}` power law over fire and
 turbulent-premixed-flame combustion noise comes from:
@@ -47,11 +49,11 @@ So `alpha = 2.5` is the physically motivated default.
    `half_width` (default 500 samples), 50% overlap, COLA-to-1.
 
    For window `i` covering samples `[c_i - h, c_i + h]`:
-   1. `psub = p .* w_i` &mdash; windowed input.
-   2. `psub_lowpass = |p_lowpass| * w_i` &mdash; envelope, zero-padded to NFFT.
-   3. `psub_noise = psub_lowpass * noise_unscaled` &mdash; envelope-shaped noise.
+   1. `psub = p .* w_i`: windowed input.
+   2. `psub_lowpass = |p_lowpass| * w_i`: envelope, zero-padded to NFFT.
+   3. `psub_noise = psub_lowpass * noise_unscaled`: envelope-shaped noise.
    4. `Y = fft(psub)`, `Y_noise = fft(psub_noise)`.
-   5. `Y_L = Y * blend1`, `Y_N = Y_noise * blend2` &mdash; the lowpass and
+   5. `Y_L = Y * blend1`, `Y_N = Y_noise * blend2`: the lowpass and
       highpass branches; `Y_S = Y` (unfiltered) is the target spectrum.
    6. `beta_i = fit_dual_power_spectra(x, Y_L, Y_N, Y_S, f_blur)` solves
       a quadratic
