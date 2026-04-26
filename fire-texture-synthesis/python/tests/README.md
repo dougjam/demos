@@ -15,7 +15,7 @@ pytest python/tests/test_statistical.py       # tier 3 only (~30 s)
 
 ## Tiers
 
-### Tier 1 &mdash; deterministic kernels
+### Tier 1: deterministic kernels
 
 `test_unit.py`. Pyramid level reduction (binary `.f64` golden,
 `atol=rtol=1e-13`), pyramid shapes for various input sizes, padded-input
@@ -23,7 +23,7 @@ power-of-2 invariant, CDF sample / inverse-sample on a hand-built
 sorted array, KD-tree determinism, PCG32 first-N outputs, range and
 same-seed determinism.
 
-### Tier 2 &mdash; full pipeline
+### Tier 2: full pipeline
 
 `test_phase_controlled.py`. For each of the 5 example (base, training)
 pairs, re-run the Python port with the original `default.xml`
@@ -34,7 +34,7 @@ This tier is slow because the synthesis loop runs sequentially window
 by window. ~30 s per smaller case (`burning_brick`, `torch`), ~1&ndash;2 min
 per larger case (`candle`, `dragon`, `flame_jet`). Total ~5&ndash;7 min.
 
-### Tier 3 &mdash; statistical smoke tests
+### Tier 3: statistical smoke tests
 
 `test_statistical.py`. Properties that must hold regardless of fixture
 data:

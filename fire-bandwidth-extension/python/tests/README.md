@@ -15,14 +15,14 @@ pytest python/tests/test_statistical.py    # tier 3 only
 
 ## Tiers
 
-### Tier 1 &mdash; deterministic kernels
+### Tier 1: deterministic kernels
 
 `test_unit.py`, 9 cases. Six binary kernel goldens (`.f64` little-endian
 Float64) plus a beta-quadratic scalar, plus three PCG32 PRNG checks
 (first-8 outputs at seed 42, same-seed determinism, and uniform [0, 1)
 range). Tolerance `atol=rtol=1e-13`. Runs in ~1.3 s.
 
-### Tier 2 &mdash; full pipeline, phase-controlled
+### Tier 2: full pipeline, phase-controlled
 
 `test_phase_controlled.py`, 15 cases. For each of the 5 released test
 signals (`burning_brick`, `candle`, `dragon`, `flame_jet`, `torch`)
@@ -41,7 +41,7 @@ burning_brick / torch case (NFFT = 262144) and ~85&ndash;145 s per
 candle / dragon / flame_jet case (NFFT = 524288). Goldens are committed;
 the test just re-runs and compares.
 
-### Tier 3 &mdash; statistical smoke tests
+### Tier 3: statistical smoke tests
 
 `test_statistical.py`. No goldens; check expected output properties:
 
