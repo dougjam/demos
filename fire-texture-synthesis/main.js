@@ -51,7 +51,12 @@ const DEFAULTS = {
 // ---------- globals ----------
 let audioCtx = null;
 let manifest = null;
-let currentName = null;
+let currentName = null;         // legacy combined label (kept for download filenames)
+let currentBaseLabel = null;
+let currentBaseKey = null;      // 'synthetic' | preset name | 'upload:N'
+let currentTrainingLabel = null;
+let currentTrainingKey = null;  // 'training_audio/...wav' | 'excerpt:<name>' | 'upload:N'
+let currentTrainingMode = null; // 'excerpt' | 'wav' | 'upload' | null
 let baseBuffer = null;          // Float32Array, base signal
 let trainingBuffer = null;      // Float32Array, training signal
 let extendedBuffer = null;      // Float32Array, synthesized output
@@ -846,15 +851,57 @@ function makeSyntheticBase() {
   return out;
 }
 
-function makeSyntheticTraining() {
-  // Pink-ish noise via simple cumulative-sum smoothing on white noise.
-  const fs = 44100, dur = 2.0, N = Math.floor(fs * dur);
-  const out = new Float32Array(N);
-  let acc = 0;
-  for (let i = 0; i < N; i++) {
-    const w = (Math.random() * 2 - 1) * 0.5;
-    acc = 0.97 * acc + w;
-    out[i] = acc * 0.05;
+// Cache the bundled training.bin excerpts (one per preset) and the
+// decoded full Recordist WAVs (one per training-audio entry). Both are
+// re-used across clicks; the cache is also why the worker's training-
+// dictionary cache stays warm when you flip back and forth.
+const _excerptCache = new Map();   // example name -> Promise<Float32Array>
+const _wavCache = new Map();       // 'training_audio/...wav' -> Promise<Float32Array>
+
+function fetchExcerpt(name) {
+  let p = _excerptCache.get(name);
+  if (!p) {
+    p = fetch('assets/' + name + '/training.bin')
+      .then(r => {
+        if (!r.ok) throw new Error('training.bin HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then(buf => new Float32Array(buf))
+      .catch(err => { _excerptCache.delete(name); throw err; });
+    _excerptCache.set(name, p);
+  }
+  return p;
+}
+
+function fetchTrainingWav(file) {
+  let p = _wavCache.get(file);
+  if (!p) {
+    p = fetch('assets/' + file)
+      .then(r => {
+        if (!r.ok) throw new Error('WAV HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then(buf => decodeWavToMono44k(buf))
+      .catch(err => { _wavCache.delete(file); throw err; });
+    _wavCache.set(file, p);
+  }
+  return p;
+}
+
+async function decodeWavToMono44k(arrayBuf) {
+  ensureAudio();
+  const audio = await audioCtx.decodeAudioData(arrayBuf.slice(0));
+  const ch = audio.getChannelData(0);
+  if (audio.sampleRate === 44100) return new Float32Array(ch);
+  const ratio = audio.sampleRate / 44100;
+  const newLen = Math.floor(ch.length / ratio);
+  const out = new Float32Array(newLen);
+  for (let i = 0; i < newLen; i++) {
+    const src = i * ratio;
+    const lo = Math.floor(src);
+    const hi = Math.min(ch.length - 1, lo + 1);
+    const f = src - lo;
+    out[i] = ch[lo] * (1 - f) + ch[hi] * f;
   }
   return out;
 }
@@ -865,45 +912,153 @@ async function loadManifest() {
     if (!resp.ok) throw new Error('manifest.json HTTP ' + resp.status);
     const m = await resp.json();
     manifest = m;
-    const row = document.getElementById('example-row');
-    const labelEl = row.querySelector('label[for="base-input"]');
-    for (const ex of m.examples) {
-      const btn = document.createElement('button');
-      btn.textContent = prettyName(ex.name);
-      btn.title = `base: ${ex.input_samples} samples · training: ${ex.training_samples} samples (${ex.training_basename})`;
-      btn.dataset.name = ex.name;
-      btn.addEventListener('click', () => loadExample(ex.name));
-      row.insertBefore(btn, labelEl);
+    populateBaseRow(m);
+    populateTrainingRow(m);
+    if (m.examples.length) {
+      await setBase(m.examples[0].name);
     }
-    if (m.examples.length) await loadExample(m.examples[0].name);
   } catch (err) {
     showBanner(
-      'Could not load the bundled examples (' + err + '). The synthetic preset still works.',
+      'Could not load the bundled examples (' + err + ').',
       false
     );
-    loadSynthetic();
+    loadSyntheticFallback();
   }
 }
 
-async function loadExample(name) {
-  if (!manifest) return loadSynthetic();
+function populateBaseRow(m) {
+  const row = document.getElementById('base-row');
+  const labelEl = row.querySelector('label[for="base-input"]');
+  for (const ex of m.examples) {
+    const btn = document.createElement('button');
+    btn.textContent = prettyName(ex.name);
+    btn.title =
+      `base: ${ex.input_samples} samples · ` +
+      `paired training excerpt: ${ex.training_samples} samples` +
+      (ex.training_audio_file ? ` (from ${ex.training_audio_file.split('/').pop()})` : '');
+    btn.dataset.baseName = ex.name;
+    btn.addEventListener('click', () => setBase(ex.name));
+    row.insertBefore(btn, labelEl);
+  }
+}
+
+function populateTrainingRow(m) {
+  const row = document.getElementById('training-row');
+  const labelEl = row.querySelector('label[for="training-input"]');
+  for (const t of (m.training_audio || [])) {
+    const btn = document.createElement('button');
+    btn.textContent = t.display_name || t.original_name || t.file;
+    btn.title = t.original_name || t.file;
+    btn.dataset.trainingFile = t.file;
+    btn.addEventListener('click', () => setTrainingFromWav(t));
+    row.insertBefore(btn, labelEl);
+  }
+}
+
+// ---------- base / training selection ----------
+
+async function setBase(name) {
+  if (!manifest) return loadSyntheticFallback();
+  if (name === 'synthetic') {
+    return setBaseSynthetic();
+  }
   const ex = manifest.examples.find(e => e.name === name);
   if (!ex) return;
   try {
     const [baseBuf, trainBuf, paramsResp] = await Promise.all([
       fetch('assets/' + ex.input_file).then(r => r.arrayBuffer()),
-      fetch('assets/' + ex.training_file).then(r => r.arrayBuffer()),
+      fetchExcerpt(ex.name),
       fetch('assets/' + ex.params_file).then(r => r.json()),
     ]);
     const base = new Float32Array(baseBuf);
-    const training = new Float32Array(trainBuf);
-    setSignals(base, training, name, { trainingId: 'example:' + name });
+    const training = trainBuf instanceof Float32Array ? trainBuf : new Float32Array(trainBuf);
     applyParamsFromExample(paramsResp);
-    markActive(name);
+    setSignals({
+      base,
+      training,
+      baseKey: ex.name,
+      baseLabel: prettyName(ex.name),
+      trainingKey: 'excerpt:' + ex.name,
+      trainingLabel: trainingLabelForExcerpt(ex),
+      trainingMode: 'excerpt',
+      trainingId: 'example:' + ex.name,
+    });
     startProcess();
   } catch (err) {
     showError('Failed to load example ' + name + ': ' + err);
   }
+}
+
+async function setBaseSynthetic() {
+  // Pair the synthetic burst with the burning_brick training excerpt:
+  // pink noise has no fire-like spectral structure for the texture
+  // search to match against, while a real training recording produces a
+  // meaningful stitched output even for the toy base signal.
+  try {
+    const training = await fetchExcerpt('burning_brick');
+    const brick = manifest && manifest.examples.find(e => e.name === 'burning_brick');
+    setSignals({
+      base: makeSyntheticBase(),
+      training,
+      baseKey: 'synthetic',
+      baseLabel: 'Synthetic burst',
+      trainingKey: 'excerpt:burning_brick',
+      trainingLabel: brick ? trainingLabelForExcerpt(brick) : 'Burning brick excerpt',
+      trainingMode: 'excerpt',
+      trainingId: 'example:burning_brick',
+    });
+    startProcess();
+  } catch (err) {
+    showError('Failed to load synthetic-preset training clip: ' + err);
+  }
+}
+
+async function setTrainingFromWav(entry) {
+  // entry is the manifest.training_audio[] object.
+  try {
+    const training = await fetchTrainingWav(entry.file);
+    setSignals({
+      base: baseBuffer,
+      training,
+      baseKey: currentBaseKey,
+      baseLabel: currentBaseLabel,
+      trainingKey: entry.file,
+      trainingLabel: entry.display_name || entry.original_name || entry.file,
+      trainingMode: 'wav',
+      trainingId: 'wav:' + entry.file,
+    });
+    if (baseBuffer) startProcess();
+  } catch (err) {
+    showError('Failed to load training WAV ' + entry.file + ': ' + err);
+  }
+}
+
+// Fallback used only when the manifest itself fails to load (e.g. file://).
+async function loadSyntheticFallback() {
+  try {
+    const training = await fetchExcerpt('burning_brick');
+    setSignals({
+      base: makeSyntheticBase(),
+      training,
+      baseKey: 'synthetic',
+      baseLabel: 'Synthetic burst',
+      trainingKey: 'excerpt:burning_brick',
+      trainingLabel: 'Burning brick excerpt',
+      trainingMode: 'excerpt',
+      trainingId: 'example:burning_brick',
+    });
+    startProcess();
+  } catch (err) {
+    showError('Failed to load synthetic-preset training clip: ' + err);
+  }
+}
+
+function trainingLabelForExcerpt(ex) {
+  if (!manifest || !ex.training_audio_file) return prettyName(ex.name) + ' excerpt';
+  const t = (manifest.training_audio || [])
+    .find(x => x.file === ex.training_audio_file);
+  if (t && t.display_name) return t.display_name;
+  return ex.training_audio_file.split('/').pop().replace(/\.[^.]+$/, '');
 }
 
 function applyParamsFromExample(p) {
@@ -933,87 +1088,132 @@ function applyParamsFromExample(p) {
   }
 }
 
-function loadSynthetic() {
-  // Synthetic training uses Math.random per click, so it differs each time;
-  // use an incrementing id so the cache invalidates correctly.
-  setSignals(makeSyntheticBase(), makeSyntheticTraining(), 'synthetic',
-              { trainingId: 'synthetic:' + (++_uploadCounter) });
-  markActive('__synthetic__');
-  startProcess();
-}
-
-function markActive(name) {
-  document.querySelectorAll('#example-row button').forEach(b => {
-    const key = b.dataset.builtin === 'synthetic' ? '__synthetic__' : b.dataset.name;
-    b.classList.toggle('active', key === name || (name === 'synthetic' && key === '__synthetic__'));
+function markActiveBase(key) {
+  document.querySelectorAll('#base-row button').forEach(b => {
+    const k = b.dataset.builtin === 'synthetic' ? 'synthetic' : b.dataset.baseName;
+    b.classList.toggle('active', k === key);
   });
 }
 
-async function loadWavInto(file, slot) {
+function markActiveTraining(key, mode) {
+  // For 'excerpt:<name>' we light up the matching training_audio button
+  // (the WAV the excerpt was sliced from). For 'wav:...' we light up
+  // exactly that WAV button. For uploads we light up nothing.
+  let highlightFile = null;
+  if (mode === 'wav' && typeof key === 'string') {
+    highlightFile = key;
+  } else if (mode === 'excerpt' && typeof key === 'string'
+             && key.startsWith('excerpt:') && manifest) {
+    const exName = key.slice('excerpt:'.length);
+    const ex = manifest.examples.find(e => e.name === exName);
+    if (ex) highlightFile = ex.training_audio_file || null;
+  }
+  document.querySelectorAll('#training-row button').forEach(b => {
+    b.classList.toggle('active', !!highlightFile && b.dataset.trainingFile === highlightFile);
+  });
+}
+
+async function loadBaseFromUserWav(file) {
   try {
-    ensureAudio();
     const buf = await file.arrayBuffer();
-    const audio = await audioCtx.decodeAudioData(buf);
-    const ch = audio.getChannelData(0);
-    let samples;
-    if (audio.sampleRate === 44100) {
-      samples = new Float32Array(ch);
-    } else {
-      const ratio = audio.sampleRate / 44100;
-      const newLen = Math.floor(ch.length / ratio);
-      samples = new Float32Array(newLen);
-      for (let i = 0; i < newLen; i++) {
-        const src = i * ratio;
-        const lo = Math.floor(src);
-        const hi = Math.min(ch.length - 1, lo + 1);
-        const f = src - lo;
-        samples[i] = ch[lo] * (1 - f) + ch[hi] * f;
-      }
-    }
-    if (slot === 'base') {
-      // Only the base changed; training (and its cached dictionary) is reusable.
-      setSignals(samples, trainingBuffer, file.name.replace(/\.[^.]+$/, ''),
-                  { trainingChanged: false });
-    } else {
-      // Training changed; assign a fresh id so the cache invalidates.
-      setSignals(baseBuffer, samples,
-                  currentName + ' / ' + file.name.replace(/\.[^.]+$/, ''),
-                  { trainingChanged: true,
-                    trainingId: 'upload:' + (++_uploadCounter) });
-    }
-    markActive(null);
+    const samples = await decodeWavToMono44k(buf);
+    const label = file.name.replace(/\.[^.]+$/, '');
+    setSignals({
+      base: samples,
+      training: trainingBuffer,
+      baseKey: 'upload:' + (++_uploadCounter),
+      baseLabel: label + ' (uploaded)',
+      // Training side is unchanged.
+      trainingKey: currentTrainingKey,
+      trainingLabel: currentTrainingLabel,
+      trainingMode: currentTrainingMode,
+      trainingChanged: false,
+    });
     if (baseBuffer && trainingBuffer) startProcess();
   } catch (err) {
     showError('Could not decode WAV: ' + err);
   }
 }
 
-function setSignals(base, training, name, opts) {
-  opts = opts || {};
-  baseBuffer = base;
-  // If trainingChanged is unspecified, infer from object identity.
+async function loadTrainingFromUserWav(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const samples = await decodeWavToMono44k(buf);
+    const label = file.name.replace(/\.[^.]+$/, '');
+    setSignals({
+      base: baseBuffer,
+      training: samples,
+      baseKey: currentBaseKey,
+      baseLabel: currentBaseLabel,
+      trainingKey: 'upload:' + (++_uploadCounter),
+      trainingLabel: label + ' (uploaded)',
+      trainingMode: 'upload',
+      trainingId: 'upload:' + _uploadCounter,
+    });
+    if (baseBuffer && trainingBuffer) startProcess();
+  } catch (err) {
+    showError('Could not decode WAV: ' + err);
+  }
+}
+
+function setSignals(opts) {
+  // Single point of truth for both halves of the signal pair.
+  // opts: { base, training, baseKey, baseLabel, trainingKey, trainingLabel,
+  //         trainingMode, trainingId?, trainingChanged? }
+  baseBuffer = opts.base;
   const trainingChanged = (opts.trainingChanged !== undefined)
     ? opts.trainingChanged
-    : (training !== trainingBuffer);
-  trainingBuffer = training;
+    : (opts.training !== trainingBuffer);
+  trainingBuffer = opts.training;
   extendedBuffer = null;
   outputPyramid = null;
-  currentName = name;
+  currentBaseKey = opts.baseKey;
+  currentBaseLabel = opts.baseLabel;
+  currentTrainingKey = opts.trainingKey;
+  currentTrainingLabel = opts.trainingLabel;
+  currentTrainingMode = opts.trainingMode;
+  currentName = `${opts.baseLabel || 'base'} / ${opts.trainingLabel || 'training'}`;
   if (trainingChanged) {
     trainingId = opts.trainingId || ('tid_' + (++_uploadCounter));
   }
-  const baseDur = base ? (base.length / 44100).toFixed(2) : '?';
-  const trainDur = training ? (training.length / 44100).toFixed(2) : '?';
-  document.getElementById('current-name').textContent =
-    `${prettyName(name)}  ·  base ${baseDur}s  ·  training ${trainDur}s`;
-  safeRenderSpec('spec-input', base);
-  safeRenderSpec('spec-training', training);
+  markActiveBase(currentBaseKey);
+  markActiveTraining(currentTrainingKey, currentTrainingMode);
+  renderStatusLine();
+  safeRenderSpec('spec-input', baseBuffer);
+  safeRenderSpec('spec-training', trainingBuffer);
   safeRenderSpec('spec-output', null);
   safeRenderPyramidStack(null);
   safeRenderSpectrumPlot();
   origPlayer.refresh();
   trainPlayer.refresh();
   extPlayer.refresh();
+}
+
+function renderStatusLine() {
+  const baseDur = baseBuffer ? (baseBuffer.length / 44100).toFixed(2) : '?';
+  const trainDur = trainingBuffer ? (trainingBuffer.length / 44100).toFixed(2) : '?';
+  const el = document.getElementById('current-name');
+  el.innerHTML = '';
+  const baseSpan = document.createElement('span');
+  baseSpan.textContent = `Base: ${currentBaseLabel || '?'} · ${baseDur}s`;
+  el.appendChild(baseSpan);
+  const sep = document.createElement('span');
+  sep.textContent = '   ·   ';
+  el.appendChild(sep);
+  const trainSpan = document.createElement('span');
+  trainSpan.textContent = `Training: ${currentTrainingLabel || '?'} · ${trainDur}s`;
+  el.appendChild(trainSpan);
+  if (currentTrainingMode === 'excerpt') {
+    const tag = document.createElement('span');
+    tag.className = 'excerpt-tag';
+    tag.textContent = '· excerpt';
+    el.appendChild(tag);
+  } else if (currentTrainingMode === 'upload') {
+    const tag = document.createElement('span');
+    tag.className = 'custom-tag';
+    tag.textContent = '· custom';
+    el.appendChild(tag);
+  }
 }
 
 function refreshExtended() {
@@ -1095,14 +1295,14 @@ function bootstrap() {
   document.getElementById('process-btn').addEventListener('click', startProcess);
   document.getElementById('base-input').addEventListener('change', (e) => {
     const f = e.target.files[0];
-    if (f) loadWavInto(f, 'base');
+    if (f) loadBaseFromUserWav(f);
   });
   document.getElementById('training-input').addEventListener('change', (e) => {
     const f = e.target.files[0];
-    if (f) loadWavInto(f, 'training');
+    if (f) loadTrainingFromUserWav(f);
   });
-  document.querySelector('#example-row button[data-builtin="synthetic"]')
-    .addEventListener('click', () => loadSynthetic());
+  document.querySelector('#base-row button[data-builtin="synthetic"]')
+    .addEventListener('click', () => setBase('synthetic'));
 
   if (location.protocol === 'file:') {
     showBanner(
@@ -1118,11 +1318,10 @@ function bootstrap() {
     document.getElementById('process-btn').disabled = true;
     document.getElementById('process-status').textContent = 'disabled (file:// protocol)';
     document.getElementById('process-status').classList.add('warn');
-    loadSynthetic();
+    loadSyntheticFallback();
     return;
   }
 
-  loadSynthetic();
   loadManifest();
 }
 

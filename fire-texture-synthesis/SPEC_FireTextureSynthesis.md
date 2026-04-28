@@ -304,12 +304,32 @@ Single page, top to bottom:
    line summarising the algorithm), citation line (with paper-section
    number), prominent link to the Cornell project page.
 
-2. **Example picker.** Five tile-style buttons, each showing both the
-   base-signal name and the training-signal name (e.g. "Dragon &middot;
-   training: training_data_1"). Plus "Load base WAV..." and "Load
-   training WAV..." file pickers and a built-in synthetic preset
-   ("Synthetic burst &middot; Synthetic colored noise"). Clicking a
-   preset loads both signals and triggers a process.
+2. **Signal pair picker.** Two rows.
+   - **Base row:** a synthetic-burst toy preset, the five
+     flame-simulation presets (`burning_brick`, `candle`, `dragon`,
+     `flame_jet`, `torch`), and a "Load base WAV..." file picker.
+   - **Training row:** one button per Recordist clip in
+     `assets/training_audio/` (six total, with `display_name` from the
+     manifest), and a "Load training WAV..." file picker. Styled with
+     the same amber palette as the training PSD line in the spectrum
+     plot to make the pairing visually obvious.
+
+   Clicking a base preset loads the base signal, applies that preset's
+   `default.json` slider values, and auto-selects the bundled
+   `training.bin` excerpt that the preset was authored against. The
+   training-row button corresponding to the WAV the excerpt was sliced
+   from is highlighted, and the status line tags the training half as
+   "&middot; excerpt". Clicking any other training-row button swaps to
+   the **full-length** WAV (longer duration; the "&middot; excerpt"
+   tag clears).
+
+   Loading a custom WAV via either file picker preserves the other
+   half of the pair and clears only that row's active highlight.
+
+   The preset &rarr; WAV mapping is discovered offline by FFT
+   normalised cross-correlation (`python/tools/resolve_training_sources.py`)
+   and baked into `manifest.examples[].training_audio_file` by
+   `python/tools/vectors_to_assets.py`.
 
 3. **Controls panel.** Sliders with numeric readouts:
 

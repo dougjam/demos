@@ -11,7 +11,8 @@
       "training_samples": 393254,
       "input_duration_s": 4.997210884353741,
       "training_duration_s": 8.917324263038548,
-      "training_basename": "training_data.vector"
+      "training_basename": "training_data.vector",
+      "training_audio_file": "training_audio/FIRE_TorchFlameMove_SBPF1_395.wav"
     },
     {
       "name": "candle",
@@ -22,7 +23,8 @@
       "training_samples": 448291,
       "input_duration_s": 5.997210884353741,
       "training_duration_s": 10.165328798185941,
-      "training_basename": "training_data.vector"
+      "training_basename": "training_data.vector",
+      "training_audio_file": "training_audio/FIRE_FlameCandlePuffs_SBPF1_M187.wav"
     },
     {
       "name": "dragon",
@@ -33,7 +35,8 @@
       "training_samples": 604463,
       "input_duration_s": 8.994421768707483,
       "training_duration_s": 13.706643990929706,
-      "training_basename": "training_data_1.vector"
+      "training_basename": "training_data_1.vector",
+      "training_audio_file": "training_audio/FIRE_TorchBurstBurn_SBPF1_393.wav"
     },
     {
       "name": "flame_jet",
@@ -44,7 +47,8 @@
       "training_samples": 670790,
       "input_duration_s": 9.997210884353741,
       "training_duration_s": 15.210657596371883,
-      "training_basename": "training_data.vector"
+      "training_basename": "training_data.vector",
+      "training_audio_file": "training_audio/FIRE_WhooshesOilCan_SBPF1_454.wav"
     },
     {
       "name": "torch",
@@ -55,33 +59,40 @@
       "training_samples": 719241,
       "input_duration_s": 4.997210884353741,
       "training_duration_s": 16.309319727891157,
-      "training_basename": "training_data.vector"
+      "training_basename": "training_data.vector",
+      "training_audio_file": "training_audio/FIRE_TorchFlameMove_SBPF1_394.wav"
     }
   ],
   "training_audio": [
     {
       "file": "training_audio/FIRE_BurnGasFlames_SBPF1_044.wav",
-      "original_name": "FIRE BurnGasFlames SBPF1_044.wav"
+      "original_name": "FIRE BurnGasFlames SBPF1_044.wav",
+      "display_name": "Burn gas flames 044"
     },
     {
       "file": "training_audio/FIRE_FlameCandlePuffs_SBPF1_M187.wav",
-      "original_name": "FIRE FlameCandlePuffs SBPF1_M187.wav"
+      "original_name": "FIRE FlameCandlePuffs SBPF1_M187.wav",
+      "display_name": "Flame candle puffs M187"
     },
     {
       "file": "training_audio/FIRE_TorchBurstBurn_SBPF1_393.wav",
-      "original_name": "FIRE TorchBurstBurn SBPF1_393.wav"
+      "original_name": "FIRE TorchBurstBurn SBPF1_393.wav",
+      "display_name": "Torch burst burn 393"
     },
     {
       "file": "training_audio/FIRE_TorchFlameMove_SBPF1_394.wav",
-      "original_name": "FIRE TorchFlameMove SBPF1_394.wav"
+      "original_name": "FIRE TorchFlameMove SBPF1_394.wav",
+      "display_name": "Torch flame move 394"
     },
     {
       "file": "training_audio/FIRE_TorchFlameMove_SBPF1_395.wav",
-      "original_name": "FIRE TorchFlameMove SBPF1_395.wav"
+      "original_name": "FIRE TorchFlameMove SBPF1_395.wav",
+      "display_name": "Torch flame move 395"
     },
     {
       "file": "training_audio/FIRE_WhooshesOilCan_SBPF1_454.wav",
-      "original_name": "FIRE WhooshesOilCan SBPF1_454.wav"
+      "original_name": "FIRE WhooshesOilCan SBPF1_454.wav",
+      "display_name": "Whooshes oil can 454"
     }
   ],
   "training_audio_credit": "Source: The Recordist 'Ultimate Fire' sound library (https://www.therecordist.com/). Used with permission inherited from the original release at https://www.cs.cornell.edu/projects/Sound/fire/. All copyright in the audio remains with The Recordist."

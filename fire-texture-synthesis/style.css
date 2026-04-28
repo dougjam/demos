@@ -63,8 +63,16 @@ h2 { font-size: 1rem; margin-bottom: 0.6rem; }
   color: #b91c1c;
 }
 
+.pair-rows {
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
 .example-row {
   display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+}
+.example-row .row-label {
+  font-size: 0.78rem; color: var(--muted); font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  min-width: 4.5rem;
 }
 .example-row button, .example-row label {
   background: var(--accent-soft);
@@ -80,8 +88,26 @@ h2 { font-size: 1rem; margin-bottom: 0.6rem; }
   background: var(--accent); color: #fff;
 }
 .example-row input[type="file"] { display: none; }
-.example-row .hint {
-  font-size: 0.8rem; color: var(--muted); margin-left: auto;
+
+/* Training row uses the amber palette so it visually echoes the
+   training PSD line in the Spectra plot (.spectrum-legend .amber). */
+#training-row button, #training-row label {
+  color: #b45309;            /* amber-700, readable on white/soft */
+  border-color: #f59e0b;     /* amber-500, matches spectrum line */
+  background: #fffbeb;       /* amber-50 */
+}
+#training-row button.active {
+  background: #f59e0b; color: #fff; border-color: #f59e0b;
+}
+.pair-status {
+  font-size: 0.8rem; color: var(--muted);
+  padding-top: 0.15rem;
+}
+.pair-status .excerpt-tag {
+  font-style: italic; color: var(--muted); margin-left: 0.25rem;
+}
+.pair-status .custom-tag {
+  font-style: italic; color: var(--accent); margin-left: 0.25rem;
 }
 
 .controls {

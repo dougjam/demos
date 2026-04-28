@@ -62,20 +62,32 @@ POSSIBILITY OF SUCH DAMAGE.
 <div id="banner" hidden></div>
 
 <section>
-  <h2>Example signal pair</h2>
-  <div class="example-row" id="example-row">
-    <button data-builtin="synthetic">Synthetic burst &middot; pink noise</button>
-    <!-- Bundled-example buttons inserted dynamically from manifest -->
-    <label for="base-input">Load base WAV&hellip;</label>
-    <input type="file" id="base-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
-    <label for="training-input">Load training WAV&hellip;</label>
-    <input type="file" id="training-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
-    <span class="hint" id="current-name">&nbsp;</span>
+  <h2>Signal pair</h2>
+  <div class="pair-rows">
+    <div class="pair-row example-row" id="base-row">
+      <span class="row-label">Base:</span>
+      <button data-builtin="synthetic">Synthetic burst</button>
+      <!-- Preset base buttons inserted dynamically from manifest -->
+      <label for="base-input">Load base WAV&hellip;</label>
+      <input type="file" id="base-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
+    </div>
+    <div class="pair-row example-row" id="training-row">
+      <span class="row-label">Training:</span>
+      <!-- Training-WAV buttons inserted dynamically from manifest -->
+      <label for="training-input">Load training WAV&hellip;</label>
+      <input type="file" id="training-input" accept="audio/wav,audio/x-wav,audio/wave,audio/*">
+    </div>
+    <div class="pair-status">
+      <span class="hint" id="current-name">&nbsp;</span>
+    </div>
   </div>
   <p class="hint-text" style="font-size:0.78rem; color:#555; margin-top:0.5rem;">
-    Pick a flame-simulation example (each preset bundles its hand-picked
-    training audio), or load your own base + training WAVs. Each click
-    re-runs the synthesis. Adjust the sliders below and hit
+    Pick a flame-simulation <strong>base</strong> (top row) and a
+    <strong>training</strong> recording (bottom row), or load your own
+    WAVs. Each preset auto-pairs with its hand-picked training clip
+    (highlighted as &ldquo;&middot; excerpt&rdquo;); click any other
+    training button to swap to the full-length WAV. Each click re-runs
+    the synthesis. Adjust the sliders below and hit
     <strong>Synthesize</strong>.
   </p>
 </section>
@@ -586,11 +598,11 @@ POSSIBILITY OF SUCH DAMAGE.
   </div>
 </footer>
 
-<script src="kdtree.js?v=14"></script>
-<script src="deterministic_rng.js?v=14"></script>
-<script src="texture_synthesis.js?v=14"></script>
-<script src="fft.js?v=14"></script>
-<script src="main.js?v=14"></script>
+<script src="kdtree.js?v=16"></script>
+<script src="deterministic_rng.js?v=16"></script>
+<script src="texture_synthesis.js?v=16"></script>
+<script src="fft.js?v=16"></script>
+<script src="main.js?v=16"></script>
 
 </body>
 </html>

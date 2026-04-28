@@ -49,10 +49,16 @@ parent demos repo's GitHub Pages URL.
 
 The five released flame-simulation signals (`burning_brick`, `candle`,
 `dragon`, `flame_jet`, `torch`) are bundled as Float32 binaries under
-`assets/`, paired with their hand-picked training audio. Each click of a
-preset button fully re-runs the synthesis for the selected (base,
-training) pair. You can also load your own base WAV or training WAV
-through the file pickers.
+`assets/`, paired with their hand-picked training audio. The Signal
+pair UI has two rows: a **Base** row (the five presets plus a
+synthetic-burst toy and "Load base WAV…") and a **Training** row (one
+button per Recordist clip in `assets/training_audio/` plus "Load
+training WAV…"). Clicking a base preset auto-selects the matching
+training clip as a tightly trimmed `training.bin` excerpt (highlighted
+in the Training row with a `· excerpt` tag in the status line); click
+any other training button to swap to the full-length WAV. Either side
+can be replaced with your own WAV through the file pickers without
+disturbing the other. Each change re-runs the synthesis.
 
 Slider controls: `numLevels` (pyramid depth), `windowHW` (output-window
 half-width in samples), `featureHW` (feature context half-width),

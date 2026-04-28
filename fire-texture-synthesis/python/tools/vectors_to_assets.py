@@ -59,6 +59,32 @@ DST_DIR = ROOT / "assets"
 EXAMPLES = ["burning_brick", "candle", "dragon", "flame_jet", "torch"]
 SAMPLE_RATE = 44100
 
+# Maps each preset's training.bin (an excerpt of a single Recordist WAV
+# in assets/training_audio/) back to its source clip. Discovered by
+# python/tools/resolve_training_sources.py via FFT normalised cross-
+# correlation; re-run that tool if the training.bin contents ever change.
+# The UI uses this to highlight the source training WAV when a preset is
+# loaded, and to label the bundled excerpt as "X excerpt".
+EXAMPLE_TRAINING_AUDIO = {
+    "burning_brick": "training_audio/FIRE_TorchFlameMove_SBPF1_395.wav",
+    "candle":        "training_audio/FIRE_FlameCandlePuffs_SBPF1_M187.wav",
+    "dragon":        "training_audio/FIRE_TorchBurstBurn_SBPF1_393.wav",
+    "flame_jet":     "training_audio/FIRE_WhooshesOilCan_SBPF1_454.wav",
+    "torch":         "training_audio/FIRE_TorchFlameMove_SBPF1_394.wav",
+}
+
+# Short pretty labels for the training-row buttons. Keyed by the WAV's
+# slugged filename (matches manifest.training_audio[].file). Anything not
+# in here falls back to a label derived from the filename.
+TRAINING_AUDIO_LABELS = {
+    "training_audio/FIRE_BurnGasFlames_SBPF1_044.wav":   "Burn gas flames 044",
+    "training_audio/FIRE_FlameCandlePuffs_SBPF1_M187.wav": "Flame candle puffs M187",
+    "training_audio/FIRE_TorchBurstBurn_SBPF1_393.wav":  "Torch burst burn 393",
+    "training_audio/FIRE_TorchFlameMove_SBPF1_394.wav":  "Torch flame move 394",
+    "training_audio/FIRE_TorchFlameMove_SBPF1_395.wav":  "Torch flame move 395",
+    "training_audio/FIRE_WhooshesOilCan_SBPF1_454.wav":  "Whooshes oil can 454",
+}
+
 # Per-example demo tunings that intentionally deviate from the canonical
 # C++ default.xml values. Anything in here is merged on top of the XML
 # config when writing assets/{name}/default.json. The demo's slider
@@ -157,6 +183,13 @@ def main() -> int:
         (out_dir / "input.bin").write_bytes(base.tobytes())
         (out_dir / "training.bin").write_bytes(training.tobytes())
 
+        training_audio_file = EXAMPLE_TRAINING_AUDIO.get(name)
+        if training_audio_file is None:
+            print(
+                f"warning: no EXAMPLE_TRAINING_AUDIO mapping for {name}; "
+                f"the UI won't be able to highlight a source WAV.",
+                file=sys.stderr,
+            )
         manifest["examples"].append({
             "name": name,
             "input_file": f"{name}/input.bin",
@@ -167,6 +200,7 @@ def main() -> int:
             "input_duration_s": float(base.size / SAMPLE_RATE),
             "training_duration_s": float(training.size / SAMPLE_RATE),
             "training_basename": params["trainingsignal"],
+            "training_audio_file": training_audio_file,
         })
         print(
             f"wrote {name}: input={base.size} samples, "
@@ -181,9 +215,11 @@ def main() -> int:
         slug = wav.stem.replace(" ", "_")
         out = audio_out / (slug + ".wav")
         shutil.copy2(wav, out)
+        rel = f"training_audio/{out.name}"
         audio_manifest.append({
-            "file": f"training_audio/{out.name}",
+            "file": rel,
             "original_name": wav.name,
+            "display_name": TRAINING_AUDIO_LABELS.get(rel, wav.stem),
         })
         print(f"copied {wav.name} -> {out.name}")
     manifest["training_audio"] = audio_manifest
