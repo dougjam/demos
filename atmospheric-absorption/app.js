@@ -486,7 +486,7 @@ function connectSource(node) {
 // Bumping AUDIO_VERSION forces browsers to re-fetch the WAVs even when
 // they're already cached. Bump this any time you regenerate or replace
 // a file in audio/.
-const AUDIO_VERSION = 9;
+const AUDIO_VERSION = 10;
 
 async function startWav(name) {
   if (!wavCache[name]) {

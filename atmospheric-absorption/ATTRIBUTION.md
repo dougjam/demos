@@ -22,11 +22,13 @@ domain (pre-1926 US recordings and US federal works), CC0, and CC BY-SA.
 | `voice.wav` (9 s) | Neil Armstrong, *"That's one small step for a man, one giant leap for mankind"* (Apollo 11, July 20, 1969) — quarter-million-mile S-band radio carries strong band-limited / loudspeaker character. We use the 14.8–23.8 s segment of the 24 s source. | Wikimedia Commons — [`File:Armstrong_Small_Step.ogg`](https://commons.wikimedia.org/wiki/File:Armstrong_Small_Step.ogg) | Public domain (NASA — US federal work) |
 | `music.wav` (7 s) | Original Dixieland Jass Band, *Tiger Rag* (1918) — full jazz band with cornet, clarinet, trombone, piano, drums. We use the 30–37 s segment of the source. | Wikimedia Commons — [`File:Tiger_Rag_ODJB.ogg`](https://commons.wikimedia.org/wiki/File:Tiger_Rag_ODJB.ogg) | Public domain (US — sound recordings published before 1926) |
 | `fan.wav` (8 s) | *"data center ambient noise"* by [Andron827](https://freesound.org/people/Andron827/) — close-mic'd recording inside a computer test lab; constant broadband drone, no transients. We use the 10–18 s segment of the ~2 min source. | Freesound — [sound 646877](https://freesound.org/people/Andron827/sounds/646877/). The original WAV download requires a Freesound login, so we fetch the publicly hosted 320 kbps HQ MP3 preview and transcode. | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (no rights reserved — attribution provided as a courtesy) |
+| `frogs.wav` (8 s) | *"Frogs Toads and Night Birds in Utah"* by [Danjocross](https://freesound.org/people/Danjocross/) — nighttime amphibian chorus recorded in a quiet Utah canyon pothole near Hite, UT (calm conditions, no wind/traffic). We use the 50–58 s segment of the 3:08 source. | Freesound — [sound 503211](https://freesound.org/people/Danjocross/sounds/503211/). Fetched via the publicly hosted HQ MP3 preview (same reason as `fan.wav`). | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (no rights reserved — attribution provided as a courtesy) |
+| `sealions.wav` (8 s) | *"Colony of sea lions on land barking and vocalizing"* by [RavenWolfProds](https://freesound.org/people/RavenWolfProds/) — ~200 California sea lions at Crescent City, CA; barks, growls, snores, huffs. We use the 90–98 s segment of the ~8 min source. | Freesound — [sound 503679](https://freesound.org/people/RavenWolfProds/sounds/503679/). Fetched via HQ MP3 preview. | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (no rights reserved — attribution provided as a courtesy) |
 
 The downloaded source files (`thunder_src.flac`, `gunshot_src.zip` +
-extracted `mosin.wav`, `voice_src.ogg`, `music_src.ogg`, `fan_src.mp3`)
-are kept alongside the rendered WAVs so the rendering is reproducible
-without re-downloading.
+extracted `mosin.wav`, `voice_src.ogg`, `music_src.ogg`, `fan_src.mp3`,
+`frogs_src.mp3`, `sealions_src.mp3`) are kept alongside the rendered
+WAVs so the rendering is reproducible without re-downloading.
 
 ## Synthesized
 

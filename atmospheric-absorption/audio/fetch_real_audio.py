@@ -42,7 +42,19 @@ Sources (Wikimedia Commons, U.S. public domain — both recordings predate
                  is CC0 so format doesn't matter.
                  https://freesound.org/people/Andron827/sounds/646877/
 
-Re-run if either source URL changes.
+  frogs.wav    <- "Frogs Toads and Night Birds in Utah" by Danjocross.
+                  Nighttime chorus in a small canyon pothole near Hite,
+                  Utah; calm conditions, no wind/traffic. CC0. Fetched
+                  via the public HQ MP3 preview (same reason as fan).
+                  https://freesound.org/people/Danjocross/sounds/503211/
+
+  sealions.wav <- "Colony of sea lions on land barking and vocalizing"
+                  by RavenWolfProds. ~200 sea lions in Crescent City,
+                  California — barks, growls, snores, huffs. CC0.
+                  Fetched via HQ MP3 preview.
+                  https://freesound.org/people/RavenWolfProds/sounds/503679/
+
+Re-run if any source URL changes.
 """
 from __future__ import annotations
 import re
@@ -108,6 +120,26 @@ SOURCES = {
         # Source is ~2 min of steady drone; we grab 8 s starting 10 s
         # in to skip any near-silent lead-in.
         "start": 10.0,
+        "dur":   8.0,
+    },
+    "frogs": {
+        # CC0; fetched as HQ MP3 preview (login-free path). Sound ID
+        # 503211. Source is 3:08 of a quiet Utah canyon at night.
+        # Profiled RMS, picked 50-58 s as the densest chorus.
+        "url":  "https://cdn.freesound.org/previews/503/503211_2977885-hq.mp3",
+        "raw":  "frogs_src.mp3",
+        "wav":  "frogs.wav",
+        "start": 50.0,
+        "dur":   8.0,
+    },
+    "sealions": {
+        # CC0; HQ MP3 preview. Sound ID 503679. Source is ~8 min of a
+        # ~200-animal colony at Crescent City. Profiled RMS, picked
+        # 90-98 s as the loudest sustained chorus.
+        "url":  "https://cdn.freesound.org/previews/503/503679_9619518-hq.mp3",
+        "raw":  "sealions_src.mp3",
+        "wav":  "sealions.wav",
+        "start": 90.0,
         "dur":   8.0,
     },
 }
