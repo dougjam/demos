@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocean Acoustic Sim — Munk Canonical</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #030d1e;
+}
+
+body {
+  display: flex;
+  align-items: stretch;
+  font-family: 'Courier New', monospace;
+  color: #7ab8d8;
+}
+
+#canvas-wrap { flex-shrink: 0; }
+
+#ocean {
+  display: block;
+  cursor: crosshair;
+}
+
+#controls {
+  width: 214px;
+  flex-shrink: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: rgba(3, 10, 30, 0.97);
+  border-left: 1px solid rgba(60, 130, 200, 0.3);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.ctrl-title {
+  font-size: 13px;
+  color: #90cce8;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(80, 150, 220, 0.25);
+  padding-bottom: 7px;
+  flex-shrink: 0;
+}
+
+.ctrl-group { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+
+.ctrl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.ctrl-label { color: #5a9ab8; }
+.ctrl-val   { color: #b0daf2; font-weight: bold; font-size: 11px; }
+.ctrl-hint  { color: #38688a; font-size: 9px; margin-top: 1px; }
+
+input[type=range] {
+  width: 100%;
+  accent-color: #3090c0;
+  cursor: pointer;
+}
+
+button {
+  background: rgba(15, 45, 85, 0.85);
+  border: 1px solid rgba(70, 140, 210, 0.45);
+  color: #70b8d8;
+  padding: 6px 0;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+button:hover { background: rgba(25, 65, 115, 0.95); color: #a0d0e8; }
+
+.info-box {
+  background: rgba(8, 20, 50, 0.7);
+  border: 1px solid rgba(50, 110, 170, 0.3);
+  border-radius: 3px;
+  padding: 7px 9px;
+  line-height: 1.85;
+  color: #6aaac8;
+  white-space: pre-line;
+  min-height: 96px;
+  flex-shrink: 0;
+}
+
+.legend { flex-shrink: 0; }
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+.legend-swatch {
+  width: 28px; height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.legend-label { color: #5a9ab8; font-size: 10px; }
+
+.dim-box {
+  background: rgba(5, 15, 40, 0.5);
+  border: 1px solid rgba(40, 90, 140, 0.2);
+  border-radius: 3px;
+  padding: 7px 9px;
+  line-height: 1.8;
+  color: #3a7090;
+  font-size: 10px;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+.dim-box .hl { color: #4888a8; }
+
+select {
+  width: 100%;
+  background: rgba(8, 20, 50, 0.9);
+  border: 1px solid rgba(60, 130, 200, 0.35);
+  color: #90cce8;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  padding: 5px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+select:focus { border-color: rgba(80, 170, 240, 0.6); }
+select option { background: #0a1830; color: #90cce8; }
+</style>
+</head>
+<body>
+
+<div id="canvas-wrap">
+  <canvas id="ocean"></canvas>
+</div>
+
+<div id="controls">
+  <div class="ctrl-title">Ocean Acoustic Sim</div>
+  <a href="../index.html" style="font-size:10px;color:#7ab8d8;text-decoration:none;opacity:0.75;">&larr; back to gallery</a>
+
+  <!-- Rays per direction -->
+  <div class="ctrl-group">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Rays per direction</span>
+      <span class="ctrl-val" id="val-rays">10</span>
+    </div>
+    <input type="range" id="sl-rays" min="1" max="500" value="10" step="1">
+  </div>
+
+  <!-- Fan width — total angular span -->
+  <div class="ctrl-group">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Fan Width (total)</span>
+      <span class="ctrl-val" id="val-spread">1°</span>
+    </div>
+    <input type="range" id="sl-spread" min="1" max="90" value="1" step="1">
+    <div class="ctrl-hint">Full angular span of the ray fan (±half from center)</div>
+  </div>
+
+  <!-- Beam direction / angle offset -->
+  <div class="ctrl-group">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Beam Direction</span>
+      <span class="ctrl-val" id="val-offset">0°</span>
+    </div>
+    <input type="range" id="sl-offset" min="-60" max="60" value="0" step="1">
+    <div class="ctrl-hint">+° tilts fan downward, −° tilts upward</div>
+  </div>
+
+  <!-- Color-by-type toggle -->
+  <div class="ctrl-group">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#5a9ab8;user-select:none;">
+      <input type="checkbox" id="cb-colortype" style="accent-color:#3090c0;cursor:pointer;width:13px;height:13px;">
+      <span>Color by ray type</span>
+    </label>
+    <div class="ctrl-hint">Unchecked: all rays blue (attenuation only)<br>Checked: yellow=surface, green=bottom</div>
+  </div>
+
+  <button id="btn-clear">Clear Rays</button>
+
+  <div class="info-box" id="info-box">Click the ocean to place a source</div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-row">
+      <div class="legend-swatch" style="background:rgba(200,238,255,0.9);box-shadow:0 0 4px rgba(50,155,240,0.8);"></div>
+      <span class="legend-label">R — refracted only</span>
+    </div>
+    <div class="legend-row" id="legend-S" style="opacity:0.25;transition:opacity 0.2s;">
+      <div class="legend-swatch" style="background:rgba(255,235,100,0.9);box-shadow:0 0 4px rgba(240,180,20,0.8);"></div>
+      <span class="legend-label">S — surface reflected</span>
+    </div>
+    <div class="legend-row" id="legend-B" style="opacity:0.25;transition:opacity 0.2s;">
+      <div class="legend-swatch" style="background:rgba(120,255,150,0.9);box-shadow:0 0 4px rgba(30,200,80,0.8);"></div>
+      <span class="legend-label">B — bottom reflected</span>
+    </div>
+    <div class="legend-row" style="margin-top:2px;">
+      <div class="legend-swatch" style="background:linear-gradient(to right, rgba(200,238,255,0.9), rgba(200,238,255,0.1));"></div>
+      <span class="legend-label">opacity = attenuation</span>
+    </div>
+  </div>
+
+  <!-- Mini sound-speed profile -->
+  <div class="ctrl-group" style="flex-shrink:0;">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Sound Speed c(z)</span>
+    </div>
+    <div style="background:rgba(5,15,40,0.7);border:1px solid rgba(50,110,170,0.3);border-radius:3px;overflow:hidden;">
+      <canvas id="profile" width="190" height="175"></canvas>
+    </div>
+    <select id="sel-profile">
+      <option value="munk">Munk Canonical</option>
+      <option value="arctic">Arctic Linear</option>
+      <option value="n2linear">n²-Linear (Airy)</option>
+      <option value="bilinear">Bilinear (Thermocline)</option>
+      <option value="epstein">Epstein Layer</option>
+      <option value="isovelocity">Isovelocity (Pekeris)</option>
+    </select>
+  </div>
+
+  <div class="dim-box" id="dim-box-info"></div>
+</div>
+
+<script>
+'use strict';
+
+// ─── Fixed physical constants ─────────────────────────────────────────────────
+const DEPTH_M    = 5_000;
+const BOT_STRIP  = 20;
+const CONTROLS_W = 214;
+const M_PER_PX   = 150_000 / 900;   // meters per canvas pixel (fixed scale ratio)
+
+// Integration
+const DT       = 0.05;
+const MAX_REFL = 50;
+
+// Attenuation physics
+const SURF_LOSS = 0.95;        // amplitude factor per surface reflection
+const BOT_LOSS  = 0.72;        // amplitude factor per bottom reflection
+const DECAY_M   = 200_000;     // cylindrical-spreading decay constant (m)
+
+// Source pulse
+const PULSE_MS = 1600;
+const PULSE_R0 = 5;
+const PULSE_R1 = 22;
+
+// Ray type colours — stored as separate rgb strings for easy alpha composition
+const RAY_COLORS = {
+  R: { glowRgb: '50, 155, 240',  coreRgb: '200, 238, 255' },
+  S: { glowRgb: '240, 180, 20',  coreRgb: '255, 235, 100' },
+  B: { glowRgb: '30,  200, 80',  coreRgb: '120, 255, 150' },
+};
+
+
+// ─── Sound Speed Profile Registry ────────────────────────────────────────────
+
+const PROFILES = [
+  {
+    id: 'munk',
+    name: 'Munk Canonical',
+    shortDesc: 'Deep-ocean SOFAR channel',
+    c(z) {
+      const eta = 2.0 * (z / 1300.0 - 1.0);
+      return 1500.0 * (1.0 + 0.00737 * (eta + Math.exp(-eta) - 1.0));
+    },
+    dcdz(z) {
+      const eta = 2.0 * (z / 1300.0 - 1.0);
+      return 1500.0 * 0.00737 * (2.0 / 1300.0) * (1.0 - Math.exp(-eta));
+    },
+    axisDepth: 1300,
+    axisLabel: 'SOFAR axis  1300 m',
+    formula: 'c(z)=c\u2081\xB7[1+\u03B5(\u03B7+e\u207B\u1DCC\u207B1)]',
+    params: 'c\u2081=1500 m/s  z\u2081=1300 m  \u03B5=0.00737',
+    ref: 'Munk (1974)'
+  },
+  {
+    id: 'arctic',
+    name: 'Arctic Linear',
+    shortDesc: 'Polar / under-ice upward refracting',
+    c(z) { return 1435.0 + 0.016 * z; },
+    dcdz(_z) { return 0.016; },
+    axisDepth: null,
+    axisLabel: null,
+    formula: 'c(z) = c\u2080 + g\xB7z',
+    params: 'c\u2080=1435 m/s  g=0.016 s\u207B\u00B9',
+    ref: 'Jensen et al.; Hurdle (1986)'
+  },
+  {
+    id: 'n2linear',
+    name: 'n\u00B2-Linear (Airy)',
+    shortDesc: 'Downward-refracting layer (Airy benchmark)',
+    c(z) {
+      const v = 1.0 + 1.0e-5 * (z - 1000.0);
+      return 1490.0 / Math.sqrt(Math.max(v, 0.01));
+    },
+    dcdz(z) {
+      const v = 1.0 + 1.0e-5 * (z - 1000.0);
+      const vs = Math.max(v, 0.01);
+      return -1490.0 * 1.0e-5 / (2.0 * Math.pow(vs, 1.5));
+    },
+    axisDepth: null,
+    axisLabel: null,
+    formula: 'c(z) = c\u2081 / \u221A(1 + a\xB7(z\u2212z\u2081))',
+    params: 'c\u2081=1490 m/s  z\u2081=1000 m  a=10\u207B\u2075 m\u207B\u00B9',
+    ref: 'Brekhovskikh & Lysanov (2003)'
+  },
+  {
+    id: 'bilinear',
+    name: 'Bilinear (Thermocline)',
+    shortDesc: 'Piecewise-linear deep channel',
+    c(z) {
+      return z < 1000.0
+        ? 1492.0 + 0.02 * (1000.0 - z)
+        : 1492.0 + 0.016 * (z - 1000.0);
+    },
+    dcdz(z) { return z < 1000.0 ? -0.02 : 0.016; },
+    axisDepth: 1000,
+    axisLabel: 'Channel axis  1000 m',
+    formula: 'c(z) = c\u2081 + g\u2081\xB7(z\u2081\u2212z)  |  c\u2081 + g\u2082\xB7(z\u2212z\u2081)',
+    params: 'c\u2081=1492  z\u2081=1000  g\u2081=0.02  g\u2082=0.016',
+    ref: 'Etter (2018)'
+  },
+  {
+    id: 'epstein',
+    name: 'Epstein Layer',
+    shortDesc: 'sech\u00B2 duct at 200 m',
+    c(z) {
+      const u = (z - 200.0) / 80.0;
+      const sech = 1.0 / Math.cosh(u);
+      return 1500.0 / Math.sqrt(1.0 + 0.02 * sech * sech);
+    },
+    dcdz(z) {
+      const u = (z - 200.0) / 80.0;
+      const sech = 1.0 / Math.cosh(u);
+      const s2 = sech * sech;
+      const denom = 1.0 + 0.02 * s2;
+      return 1500.0 * 0.02 * s2 * Math.tanh(u) / (80.0 * Math.pow(denom, 1.5));
+    },
+    axisDepth: 200,
+    axisLabel: 'Duct centre  200 m',
+    formula: 'c(z) = c\u2081 / \u221A(1 + \u03B4c\xB7sech\u00B2((z\u2212z\u2081)/L))',
+    params: 'c\u2081=1500  z\u2081=200 m  \u03B4c=0.02  L=80 m',
+    ref: 'Epstein (1930); Brekhovskikh'
+  },
+  {
+    id: 'isovelocity',
+    name: 'Isovelocity (Pekeris)',
+    shortDesc: 'Constant sound speed',
+    c(_z) { return 1500.0; },
+    dcdz(_z) { return 0.0; },
+    axisDepth: null,
+    axisLabel: null,
+    formula: 'c(z) = c\u2080 = const',
+    params: 'c\u2080=1500 m/s',
+    ref: 'Pekeris (1948)'
+  }
+];
+
+let activeProfile = PROFILES[0];
+
+function soundSpeed(z)    { return activeProfile.c(z); }
+function dSoundSpeedDz(z) { return activeProfile.dcdz(z); }
+
+
+// ─── Dynamic dimensions ───────────────────────────────────────────────────────
+let CANVAS_W, CANVAS_H, USABLE_H, RANGE_M, MAX_STEPS;
+
+function computeDimensions() {
+  CANVAS_W  = Math.max(400, window.innerWidth - CONTROLS_W);
+  CANVAS_H  = window.innerHeight;
+  USABLE_H  = CANVAS_H - BOT_STRIP;
+  RANGE_M   = CANVAS_W * M_PER_PX;
+  MAX_STEPS = Math.ceil(RANGE_M / 75) + 300;
+}
+
+
+// ─── Physics ──────────────────────────────────────────────────────────────────
+
+function rayDeriv(state, sx) {
+  const [, z, sz] = state;
+  const c    = soundSpeed(z);
+  const dcdz = dSoundSpeedDz(z);
+  return [c * c * sx,  c * c * sz,  -dcdz / c];
+}
+
+function rk4Step(state, sx, dt) {
+  const k1 = rayDeriv(state, sx);
+  const s2 = [state[0]+0.5*dt*k1[0], state[1]+0.5*dt*k1[1], state[2]+0.5*dt*k1[2]];
+  const k2 = rayDeriv(s2, sx);
+  const s3 = [state[0]+0.5*dt*k2[0], state[1]+0.5*dt*k2[1], state[2]+0.5*dt*k2[2]];
+  const k3 = rayDeriv(s3, sx);
+  const s4 = [state[0]+   dt*k3[0],  state[1]+   dt*k3[1],  state[2]+   dt*k3[2]];
+  const k4 = rayDeriv(s4, sx);
+  return [
+    state[0] + (dt/6)*(k1[0]+2*k2[0]+2*k3[0]+k4[0]),
+    state[1] + (dt/6)*(k1[1]+2*k2[1]+2*k3[1]+k4[1]),
+    state[2] + (dt/6)*(k1[2]+2*k2[2]+2*k3[2]+k4[2])
+  ];
+}
+
+// Advance state by dt, handling boundary reflections with sub-step interpolation.
+// Returns array of {state, event} where event is null, 'S', or 'B'.
+function advanceWithReflections(state, sx, dt) {
+  const segments = [];
+  let remaining = dt;
+  let cur = state;
+  let bounces = 0;
+
+  while (remaining > 1e-12 && bounces < 3) {
+    const prev = cur;
+    const next = rk4Step(prev, sx, remaining);
+    const [, zPrev] = prev;
+    let [x, z, sz] = next;
+
+    // Determine which boundary was crossed (if any)
+    let boundary = null, zBound;
+    if (z < 0)        { boundary = 'S'; zBound = 0; }
+    else if (z > DEPTH_M) { boundary = 'B'; zBound = DEPTH_M; }
+
+    if (boundary === null) {
+      // No crossing — accept full sub-step
+      segments.push({state: next, event: null});
+      cur = next;
+      remaining = 0;
+    } else {
+      // Linear interpolation to find fractional crossing time
+      let frac = (zBound - zPrev) / (z - zPrev);
+      frac = Math.max(1e-6, Math.min(frac, 1.0));
+      const dtBound = frac * remaining;
+
+      // Partial RK4 step to boundary
+      const atBound = rk4Step(prev, sx, dtBound);
+      atBound[1] = zBound;  // snap z exactly to boundary
+      segments.push({state: [...atBound], event: boundary});
+
+      // Reflect vertical slowness
+      atBound[2] = -atBound[2];
+      cur = atBound;
+      remaining -= dtBound;
+      bounces++;
+    }
+  }
+  return segments;
+}
+
+// Returns { path: [{x,z,s},...], hitSurface, hitBottom, events: [{stepIdx,type},...] }
+// dir: +1 = rightward, -1 = leftward
+function traceRay(srcX, srcZ, thetaDeg, dir = 1) {
+  const theta = thetaDeg * Math.PI / 180.0;
+  const c0    = soundSpeed(srcZ);
+  const sx    = dir * Math.cos(theta) / c0;
+  // sz negated for dir=-1 so backward ray is true −rHat (dipole / directional source)
+  let   state = [srcX, srcZ, dir * Math.sin(theta) / c0];
+
+  const path   = [{x: srcX, z: srcZ, s: 0}];
+  const events = [];   // reflection events: {stepIdx, type:'S'|'B'}
+  let   arcLen = 0;
+  let   refls  = 0;
+  let   hitSurface = false;
+  let   hitBottom  = false;
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    const segments = advanceWithReflections(state, sx, DT);
+
+    for (const seg of segments) {
+      const [x, z] = seg.state;
+      const prev = path[path.length - 1];
+      const dx = x - prev.x;
+      const dz = z - prev.z;
+      arcLen += Math.sqrt(dx * dx + dz * dz);
+
+      if (seg.event === 'S') {
+        hitSurface = true;
+        events.push({stepIdx: path.length, type: 'S'});
+        refls++;
+      } else if (seg.event === 'B') {
+        hitBottom = true;
+        events.push({stepIdx: path.length, type: 'B'});
+        refls++;
+      }
+
+      path.push({x, z, s: arcLen});
+    }
+
+    state = segments[segments.length - 1].state;
+
+    const [x] = state;
+    if (x > RANGE_M || x < 0) break;
+    if (refls > MAX_REFL)      break;
+  }
+
+  return {path, hitSurface, hitBottom, events};
+}
+
+// Classify ray type
+function rayType(ray) {
+  if (ray.hitSurface)  return 'S';   // surface hit (may also hit bottom)
+  if (ray.hitBottom)   return 'B';   // bottom only
+  return 'R';                         // purely refracted
+}
+
+// Launch numRays per direction (L+R); fan centered at offsetDeg from horizontal
+function traceAllRays(srcX, srcZ, numRays, spreadDeg, offsetDeg) {
+  const rays = [];
+  const half = spreadDeg / 2.0;
+  for (let i = 0; i < numRays; i++) {
+    const frac  = numRays > 1 ? i / (numRays - 1) : 0.5;
+    const angle = offsetDeg + (-half + frac * spreadDeg);
+    rays.push(traceRay(srcX, srcZ, angle,  1));  // rightward
+    rays.push(traceRay(srcX, srcZ, angle, -1));  // leftward
+  }
+  return rays;
+}
+
+
+// ─── Coordinate transforms ────────────────────────────────────────────────────
+
+function physToCanvas(x, z) {
+  return {
+    px: Math.max(0, Math.min(CANVAS_W, x / RANGE_M * CANVAS_W)),
+    py: Math.max(0, Math.min(USABLE_H, z / DEPTH_M * USABLE_H))
+  };
+}
+
+function canvasToPhys(px, py) {
+  return {
+    x: px / CANVAS_W * RANGE_M,
+    z: py / USABLE_H * DEPTH_M
+  };
+}
+
+
+// ─── Background ───────────────────────────────────────────────────────────────
+
+function buildBackground(ctx) {
+  const imgData = ctx.createImageData(CANVAS_W, CANVAS_H);
+  const data    = imgData.data;
+
+  // Compute dynamic c range for this profile
+  let C_MIN = Infinity, C_MAX = -Infinity;
+  for (let y = 0; y < USABLE_H; y++) {
+    const c = soundSpeed((y / USABLE_H) * DEPTH_M);
+    if (c < C_MIN) C_MIN = c;
+    if (c > C_MAX) C_MAX = c;
+  }
+  const C_RANGE = (C_MAX - C_MIN) || 1;  // guard against isovelocity /0
+
+  for (let y = 0; y < CANVAS_H; y++) {
+    let r, g, b;
+    if (y >= USABLE_H) {
+      r = 60; g = 46; b = 34;
+    } else {
+      const c = soundSpeed((y / USABLE_H) * DEPTH_M);
+      const t = Math.max(0, Math.min(1, (c - C_MIN) / C_RANGE));
+      r = Math.round( 8 + t * 24);
+      g = Math.round(22 + t * 58);
+      b = Math.round(92 + t * 98);
+    }
+    for (let x = 0; x < CANVAS_W; x++) {
+      const idx = (y * CANVAS_W + x) * 4;
+      data[idx]=r; data[idx+1]=g; data[idx+2]=b; data[idx+3]=255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Sediment border
+  ctx.strokeStyle = 'rgba(110, 78, 52, 0.75)';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, USABLE_H); ctx.lineTo(CANVAS_W, USABLE_H); ctx.stroke();
+
+  // Channel axis dashed line (only if profile has one)
+  if (activeProfile.axisDepth != null) {
+    const axisPy = (activeProfile.axisDepth / DEPTH_M) * USABLE_H;
+    ctx.strokeStyle = 'rgba(100, 185, 245, 0.20)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([9, 5]);
+    ctx.beginPath(); ctx.moveTo(0, axisPy); ctx.lineTo(CANVAS_W, axisPy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = '9px Courier New';
+    ctx.fillStyle = 'rgba(100, 185, 240, 0.52)';
+    ctx.fillText(activeProfile.axisLabel, 6, axisPy - 4);
+  }
+
+  ctx.font = '9px Courier New';
+  ctx.fillStyle = 'rgba(70, 140, 195, 0.42)';
+  [0, 1000, 2000, 3000, 4000, 5000].forEach(d => {
+    const py = Math.round((d / DEPTH_M) * USABLE_H);
+    ctx.fillText(d === 0 ? '0 m' : String(d), 3, Math.min(py + 10, USABLE_H - 2));
+  });
+
+  const rangeStepM = Math.max(10_000, Math.round(RANGE_M / 5 / 10_000) * 10_000);
+  ctx.fillStyle = 'rgba(70, 140, 195, 0.42)';
+  for (let rm = 0; rm <= RANGE_M; rm += rangeStepM) {
+    const px = Math.round((rm / RANGE_M) * CANVAS_W);
+    ctx.fillText(rm === 0 ? '0' : (rm / 1000).toFixed(0) + 'km', px + 2, 10);
+  }
+
+  ctx.fillStyle = 'rgba(80, 150, 200, 0.38)';
+  ctx.fillText('surface', 3, 19);
+  ctx.fillStyle = 'rgba(130, 95, 68, 0.58)';
+  ctx.fillText('sediment', 3, USABLE_H + BOT_STRIP / 2 + 4);
+
+  return ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+}
+
+
+// ─── Sound-speed profile sidebar ──────────────────────────────────────────────
+
+function drawProfileSidebar() {
+  const pc  = document.getElementById('profile');
+  const pct = pc.getContext('2d');
+  const W = pc.width, H = pc.height;
+  const PAD_L = 26, PAD_R = 6, PAD_T = 6, PAD_B = 14;
+  const plotW = W - PAD_L - PAD_R;
+  const plotH = H - PAD_T - PAD_B;
+
+  pct.fillStyle = 'rgba(5, 15, 40, 1)';
+  pct.fillRect(0, 0, W, H);
+
+  const samples = 200;
+  let cMin = Infinity, cMax = -Infinity;
+  for (let i = 0; i <= samples; i++) {
+    const c = soundSpeed((i / samples) * DEPTH_M);
+    if (c < cMin) cMin = c;
+    if (c > cMax) cMax = c;
+  }
+  const cRange = cMax - cMin;
+
+  pct.strokeStyle = 'rgba(50, 100, 150, 0.25)';
+  pct.lineWidth   = 0.5;
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const x = PAD_L + t * plotW;
+    pct.beginPath(); pct.moveTo(x, PAD_T); pct.lineTo(x, PAD_T + plotH); pct.stroke();
+    pct.fillStyle = 'rgba(60, 130, 180, 0.5)';
+    pct.font = '7px Courier New';
+    pct.fillText(Math.round(cMin + t * cRange), x - 12, H - 2);
+  });
+
+  [0, 1000, 2000, 3000, 4000, 5000].forEach(d => {
+    const y = PAD_T + (d / DEPTH_M) * plotH;
+    pct.strokeStyle = 'rgba(50, 100, 150, 0.2)';
+    pct.lineWidth   = 0.5;
+    pct.beginPath(); pct.moveTo(PAD_L, y); pct.lineTo(PAD_L + plotW, y); pct.stroke();
+    pct.fillStyle = 'rgba(60, 130, 180, 0.5)';
+    pct.font = '7px Courier New';
+    pct.fillText(d === 0 ? '0' : (d / 1000) + 'k', 0, y + 3);
+  });
+
+  pct.strokeStyle = 'rgba(100, 200, 255, 0.85)';
+  pct.lineWidth   = 1.5;
+  pct.shadowColor = 'rgba(80, 180, 255, 1.0)';
+  pct.shadowBlur  = 4;
+  pct.beginPath();
+  for (let i = 0; i <= samples; i++) {
+    const z  = (i / samples) * DEPTH_M;
+    const c  = soundSpeed(z);
+    const px = PAD_L + ((c - cMin) / cRange) * plotW;
+    const py = PAD_T + (z / DEPTH_M) * plotH;
+    if (i === 0) pct.moveTo(px, py); else pct.lineTo(px, py);
+  }
+  pct.stroke();
+  pct.shadowBlur = 0;
+
+  // Channel axis marker (if profile has one)
+  if (activeProfile.axisDepth != null) {
+    const ad = activeProfile.axisDepth;
+    const axC  = soundSpeed(ad);
+    const axPx = PAD_L + ((axC - cMin) / cRange) * plotW;
+    const axPy = PAD_T + (ad / DEPTH_M) * plotH;
+    pct.strokeStyle = 'rgba(100, 200, 255, 0.35)';
+    pct.lineWidth   = 0.5;
+    pct.setLineDash([3, 3]);
+    pct.beginPath(); pct.moveTo(PAD_L, axPy); pct.lineTo(axPx, axPy); pct.stroke();
+    pct.setLineDash([]);
+    pct.fillStyle = 'rgba(100, 200, 255, 0.7)';
+    pct.beginPath(); pct.arc(axPx, axPy, 2.5, 0, 2 * Math.PI); pct.fill();
+  }
+}
+
+
+// ─── Ray rendering ────────────────────────────────────────────────────────────
+
+let offscreen    = null;
+let offscreenCtx = null;
+
+function initOffscreen() {
+  offscreen        = document.createElement('canvas');
+  offscreen.width  = CANVAS_W;
+  offscreen.height = CANVAS_H;
+  offscreenCtx     = offscreen.getContext('2d');
+}
+
+// Compute amplitude at a given arc length and after given reflection events up to that point
+function segmentAlpha(amplitude, arc_m) {
+  return amplitude * Math.exp(-arc_m / DECAY_M);
+}
+
+// Render one group of same-type rays with per-segment attenuation
+function renderRayGroupAttenuated(ctx, rays, colors) {
+  if (rays.length === 0) return;
+
+  // ── Pass 1: Outer glow (whole ray, single blended alpha, subsampled) ──────
+  ctx.save();
+  ctx.shadowColor = `rgba(${colors.glowRgb}, 1.0)`;
+  ctx.shadowBlur  = 9;
+  ctx.lineWidth   = 2.0;
+
+  for (const ray of rays) {
+    const {path, events} = ray;
+    if (path.length < 2) continue;
+
+    // Overall amplitude at end of ray for glow opacity
+    let finalAmp = 1.0;
+    for (const evt of events) finalAmp *= (evt.type === 'S' ? SURF_LOSS : BOT_LOSS);
+    finalAmp *= Math.exp(-path[path.length - 1].s / DECAY_M);
+    const glowAlpha = 0.16 * Math.max(0.12, Math.pow(finalAmp, 0.5));
+
+    ctx.strokeStyle = `rgba(${colors.glowRgb}, ${glowAlpha.toFixed(3)})`;
+    ctx.beginPath();
+    const p0 = physToCanvas(path[0].x, path[0].z);
+    ctx.moveTo(p0.px, p0.py);
+    for (let i = 2; i < path.length; i += 2) {
+      const p = physToCanvas(path[i].x, path[i].z);
+      ctx.lineTo(p.px, p.py);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Pass 2: Bright core — per reflection-segment with attenuating alpha ───
+  ctx.save();
+  ctx.shadowBlur = 0;
+  ctx.lineWidth  = 0.9;
+
+  for (const ray of rays) {
+    const {path, events} = ray;
+    if (path.length < 2) continue;
+
+    // Segment boundaries between consecutive reflections
+    const boundaries = [0, ...events.map(e => e.stepIdx), path.length - 1];
+    let amplitude = 1.0;
+
+    for (let seg = 0; seg < boundaries.length - 1; seg++) {
+      const i0 = boundaries[seg];
+      const i1 = boundaries[seg + 1];
+
+      if (i1 > i0) {
+        // Alpha at midpoint of this segment
+        const midIdx = Math.min(i0 + ((i1 - i0) >> 1), path.length - 1);
+        const alpha  = segmentAlpha(amplitude, path[midIdx].s) * 0.62;
+
+        if (alpha < 0.006) {
+          // All further segments also too faint — skip
+          break;
+        }
+
+        ctx.strokeStyle = `rgba(${colors.coreRgb}, ${Math.min(1, alpha).toFixed(3)})`;
+        ctx.beginPath();
+        const p0 = physToCanvas(path[i0].x, path[i0].z);
+        ctx.moveTo(p0.px, p0.py);
+        for (let i = i0 + 1; i <= i1; i++) {
+          const p = physToCanvas(path[i].x, path[i].z);
+          ctx.lineTo(p.px, p.py);
+        }
+        ctx.stroke();
+      }
+
+      // Apply reflection loss for the boundary at the end of this segment
+      if (seg < events.length) {
+        amplitude *= (events[seg].type === 'S' ? SURF_LOSS : BOT_LOSS);
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function renderRaysToOffscreen(rays) {
+  offscreen.width  = CANVAS_W;
+  offscreen.height = CANVAS_H;
+  offscreenCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  if (colorByType) {
+    const groups = {R: [], S: [], B: []};
+    for (const ray of rays) groups[rayType(ray)].push(ray);
+    renderRayGroupAttenuated(offscreenCtx, groups.R, RAY_COLORS.R);
+    renderRayGroupAttenuated(offscreenCtx, groups.B, RAY_COLORS.B);
+    renderRayGroupAttenuated(offscreenCtx, groups.S, RAY_COLORS.S);
+  } else {
+    // All rays rendered in blue — attenuation alone carries the information
+    renderRayGroupAttenuated(offscreenCtx, rays, RAY_COLORS.R);
+  }
+}
+
+
+// ─── Source marker ────────────────────────────────────────────────────────────
+
+function drawSource(ctx, x_m, z_m, timestamp) {
+  const {px, py} = physToCanvas(x_m, z_m);
+  const phase     = (timestamp % PULSE_MS) / PULSE_MS;
+
+  const r1 = PULSE_R0 + phase * (PULSE_R1 - PULSE_R0);
+  ctx.beginPath(); ctx.arc(px, py, r1, 0, 2 * Math.PI);
+  ctx.strokeStyle = `rgba(70, 205, 255, ${((1 - phase) * 0.85).toFixed(3)})`;
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+
+  const phase2 = ((timestamp + PULSE_MS * 0.5) % PULSE_MS) / PULSE_MS;
+  const r2     = PULSE_R0 + phase2 * (PULSE_R1 - PULSE_R0);
+  ctx.beginPath(); ctx.arc(px, py, r2, 0, 2 * Math.PI);
+  ctx.strokeStyle = `rgba(120, 220, 255, ${((1 - phase2) * 0.45).toFixed(3)})`;
+  ctx.lineWidth   = 1;
+  ctx.stroke();
+
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, PULSE_R0);
+  grad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+  grad.addColorStop(0.6, 'rgba(160, 232, 255, 0.88)');
+  grad.addColorStop(1.0, 'rgba(50,  185, 245, 0.40)');
+  ctx.beginPath(); ctx.arc(px, py, PULSE_R0, 0, 2 * Math.PI);
+  ctx.fillStyle = grad; ctx.fill();
+}
+
+
+// ─── Ghost hover marker ───────────────────────────────────────────────────────
+
+function drawGhostMarker(ctx, x_m, z_m) {
+  const {px, py} = physToCanvas(x_m, z_m);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(100, 190, 235, 0.18)';
+  ctx.lineWidth   = 0.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(px, 0);  ctx.lineTo(px, USABLE_H);
+  ctx.moveTo(0,  py); ctx.lineTo(CANVAS_W, py);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.beginPath(); ctx.arc(px, py, PULSE_R0, 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(130, 210, 255, 0.35)';
+  ctx.lineWidth   = 1; ctx.stroke();
+
+  const z_m2 = canvasToPhys(px, py).z;
+  const c     = soundSpeed(z_m2).toFixed(1);
+  const label = `${z_m2.toFixed(0)} m  c=${c} m/s`;
+  ctx.font    = '10px Courier New';
+  const tw    = ctx.measureText(label).width;
+  ctx.fillStyle = 'rgba(130, 210, 255, 0.65)';
+  ctx.fillText(label, Math.min(px + 8, CANVAS_W - tw - 4), Math.max(py - 6, 12));
+  ctx.restore();
+}
+
+
+// ─── Beam direction indicator ─────────────────────────────────────────────────
+// Draws a butterfly (dipole) icon: two wedge fans — forward (+rHat) and
+// backward (−rHat) — matching the actual ray fan angles exactly.
+
+function drawBeamIndicator(ctx, srcX, srcZ, spreadDeg, offsetDeg) {
+  const {px, py} = physToCanvas(srcX, srcZ);
+  const len     = 52;   // px — arm length
+  const halfRad = (spreadDeg / 2) * Math.PI / 180;
+  const offRad  = offsetDeg * Math.PI / 180;
+
+  // The canvas has a very non-square aspect ratio (ocean is ~150 km wide, 5 km deep).
+  // A physical ray at angle θ from horizontal maps to canvas direction
+  //   (cos θ · kx,  sin θ · kz)
+  // where kx = CANVAS_W/RANGE_M  and  kz = USABLE_H/DEPTH_M.
+  // We must apply this transform so the indicator wedges visually line up with the rays.
+  const kx = CANVAS_W / RANGE_M;
+  const kz = USABLE_H / DEPTH_M;
+  function toCanvasAngle(physAngle) {
+    return Math.atan2(Math.sin(physAngle) * kz, Math.cos(physAngle) * kx);
+  }
+
+  // Canvas-space angles for the two boundary rays and the centre axis
+  const cA1  = toCanvasAngle(offRad - halfRad);
+  const cA2  = toCanvasAngle(offRad + halfRad);
+  const cCtr = toCanvasAngle(offRad);
+
+  ctx.save();
+
+  // Helper: draw one wedge (filled pie slice + border)
+  function drawWedge(a1, a2) {
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.arc(px, py, len, a1, a2);
+    ctx.closePath();
+    ctx.fillStyle   = 'rgba(70, 185, 255, 0.10)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(160, 225, 255, 0.60)';
+    ctx.lineWidth   = 1.0;
+    ctx.stroke();
+  }
+
+  // Forward fan (+rHat, rightward) — canvas angles cA1 → cA2
+  drawWedge(cA1, cA2);
+
+  // Backward fan (−rHat, dipole opposite) — exactly π offset in canvas space
+  drawWedge(Math.PI + cA1, Math.PI + cA2);
+
+  // ── Dashed central axis through both fans ──────────────────────────────────
+  ctx.strokeStyle = 'rgba(110, 195, 255, 0.28)';
+  ctx.lineWidth   = 0.8;
+  ctx.setLineDash([4, 4]);
+  const axLen = len + 10;
+  ctx.beginPath();
+  ctx.moveTo(px - axLen * Math.cos(cCtr), py - axLen * Math.sin(cCtr));
+  ctx.lineTo(px + axLen * Math.cos(cCtr), py + axLen * Math.sin(cCtr));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── Small central diamond marker ───────────────────────────────────────────
+  ctx.save();
+  ctx.translate(px, py);
+  const d = 5;
+  ctx.beginPath();
+  ctx.moveTo(0, -d); ctx.lineTo(d, 0); ctx.lineTo(0, d); ctx.lineTo(-d, 0);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(180, 235, 255, 0.75)';
+  ctx.lineWidth   = 1.2;
+  ctx.stroke();
+  ctx.fillStyle   = 'rgba(100, 210, 255, 0.35)';
+  ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+
+// ─── Dim-box info panel ──────────────────────────────────────────────────────
+
+function updateDimBox() {
+  const box = document.getElementById('dim-box-info');
+  box.innerHTML =
+    `<span class="hl">${activeProfile.ref}</span><br>` +
+    `${activeProfile.formula}<br>` +
+    `${activeProfile.params}<br>` +
+    `<br>` +
+    `<span class="hl">Attenuation</span><br>` +
+    `Distance: cylindrical spreading<br>` +
+    `Bottom loss: ~0.72\u00D7 per bounce<br>` +
+    `Surface loss: ~0.95\u00D7 per bounce<br>` +
+    `<br>` +
+    `<span style="color:#356080;">Domain: ${(RANGE_M/1000).toFixed(0)} km \u00D7 ${DEPTH_M/1000} km</span>`;
+}
+
+
+// ─── Application state ────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('ocean');
+const ctx    = canvas.getContext('2d');
+
+let cachedBg  = null;
+let sourcePos = null;
+let hoverPos  = null;
+let hasRays   = false;
+
+let numRays    = 10;
+let spreadDeg  = 1;
+let offsetDeg  = 0;
+let colorByType = false;
+
+
+// ─── Info box ─────────────────────────────────────────────────────────────────
+
+function setInfo(lines) {
+  document.getElementById('info-box').textContent = lines.join('\n');
+}
+function clearInfo() {
+  setInfo(['Click the ocean to place a source']);
+}
+
+
+// ─── Place source + trace ─────────────────────────────────────────────────────
+
+function placeSource(px, py) {
+  if (py >= USABLE_H) return;
+
+  const phys = canvasToPhys(px, py);
+  sourcePos  = phys;
+  hoverPos   = null;
+
+  const t0   = performance.now();
+  const rays = traceAllRays(phys.x, phys.z, numRays, spreadDeg, offsetDeg);
+  const ms   = (performance.now() - t0).toFixed(0);
+
+  let nR = 0, nS = 0, nB = 0;
+  for (const r of rays) {
+    const t = rayType(r);
+    if (t === 'R') nR++; else if (t === 'S') nS++; else nB++;
+  }
+
+  renderRaysToOffscreen(rays);
+  hasRays = true;
+
+  const total = nR + nS + nB;
+  const ctrDir = offsetDeg === 0 ? 'horiz.' : (offsetDeg > 0 ? `${offsetDeg}°↓` : `${-offsetDeg}°↑`);
+  setInfo([
+    `Range: ${(phys.x/1000).toFixed(1)} km`,
+    `Depth: ${phys.z.toFixed(0)} m  c=${soundSpeed(phys.z).toFixed(1)} m/s`,
+    `Fan:   ±${(spreadDeg/2).toFixed(0)}° total ${spreadDeg}°  ctr ${ctrDir}`,
+    `Rays:  ${total} (${numRays}×L+R)  ${ms}ms`,
+    `R:${nR}  S:${nS}  B:${nB}`
+  ]);
+}
+
+function retrace() {
+  if (!sourcePos) return;
+  const {px, py} = physToCanvas(sourcePos.x, sourcePos.z);
+  placeSource(px, py);
+}
+
+
+// ─── Animation loop ───────────────────────────────────────────────────────────
+
+function animationLoop(timestamp) {
+  ctx.putImageData(cachedBg, 0, 0);
+
+  if (hasRays) ctx.drawImage(offscreen, 0, 0);
+
+  if (hoverPos && !sourcePos) drawGhostMarker(ctx, hoverPos.x, hoverPos.z);
+
+  if (sourcePos) {
+    const {px, py} = physToCanvas(sourcePos.x, sourcePos.z);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(180, 225, 255, 0.10)';
+    ctx.lineWidth   = 0.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(px, 0);  ctx.lineTo(px, USABLE_H);
+    ctx.moveTo(0,  py); ctx.lineTo(CANVAS_W, py);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    drawBeamIndicator(ctx, sourcePos.x, sourcePos.z, spreadDeg, offsetDeg);
+    drawSource(ctx, sourcePos.x, sourcePos.z, timestamp);
+  }
+
+  requestAnimationFrame(animationLoop);
+}
+
+
+// ─── Resize ───────────────────────────────────────────────────────────────────
+
+function resize() {
+  computeDimensions();
+  canvas.width  = CANVAS_W;
+  canvas.height = CANVAS_H;
+  cachedBg = buildBackground(ctx);
+
+  if (sourcePos && sourcePos.x > RANGE_M) {
+    sourcePos = null; hasRays = false; clearInfo();
+  } else {
+    retrace();
+  }
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(resize, 180);
+});
+
+
+// ─── Event handlers ───────────────────────────────────────────────────────────
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const px   = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+  const py   = (e.clientY - rect.top)  * (CANVAS_H / rect.height);
+  placeSource(px, py);
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const px   = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+  const py   = (e.clientY - rect.top)  * (CANVAS_H / rect.height);
+  hoverPos   = py < USABLE_H ? canvasToPhys(px, py) : null;
+});
+
+canvas.addEventListener('mouseleave', () => { hoverPos = null; });
+
+document.getElementById('sl-rays').addEventListener('input', e => {
+  numRays = parseInt(e.target.value);
+  document.getElementById('val-rays').textContent = numRays;
+  retrace();
+});
+
+document.getElementById('sl-spread').addEventListener('input', e => {
+  spreadDeg = parseInt(e.target.value);
+  document.getElementById('val-spread').textContent = spreadDeg + '°';
+  retrace();
+});
+
+document.getElementById('sl-offset').addEventListener('input', e => {
+  offsetDeg = parseInt(e.target.value);
+  const sign = offsetDeg > 0 ? '↓' : offsetDeg < 0 ? '↑' : '';
+  document.getElementById('val-offset').textContent =
+    (offsetDeg >= 0 ? '+' : '') + offsetDeg + '°' + sign;
+  retrace();
+});
+
+document.getElementById('cb-colortype').addEventListener('change', e => {
+  colorByType = e.target.checked;
+  const op = colorByType ? '1' : '0.25';
+  document.getElementById('legend-S').style.opacity = op;
+  document.getElementById('legend-B').style.opacity = op;
+  retrace();
+});
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  sourcePos = null; hasRays = false;
+  offscreenCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  clearInfo();
+});
+
+document.getElementById('sel-profile').addEventListener('change', e => {
+  activeProfile = PROFILES.find(p => p.id === e.target.value);
+  document.title = `Ocean Acoustic Sim \u2014 ${activeProfile.name}`;
+  cachedBg = buildBackground(ctx);
+  drawProfileSidebar();
+  updateDimBox();
+  retrace();
+});
+
+
+// ─── Initialise ───────────────────────────────────────────────────────────────
+
+computeDimensions();
+canvas.width  = CANVAS_W;
+canvas.height = CANVAS_H;
+initOffscreen();
+cachedBg = buildBackground(ctx);
+drawProfileSidebar();
+updateDimBox();
+clearInfo();
+requestAnimationFrame(animationLoop);
+</script>
+</body>
+</html>
