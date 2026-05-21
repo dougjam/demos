@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<!-- (c) 2026 Doug James, Stanford University. BSD-2-Clause. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmospheric Absorption</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+  padding: 1.5rem 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+.subtitle { color: #555; font-size: 0.9rem; margin-bottom: 0.5rem; }
+.nav-link { font-size: 0.85rem; margin-bottom: 1.25rem; }
+.nav-link a { color: #2563eb; text-decoration: none; }
+.nav-link a:hover { text-decoration: underline; }
+
+.card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.plot-card { padding: 0.5rem; }
+#plotCanvas { width: 100%; height: 320px; display: block; }
+
+.seg-bar {
+  display: flex;
+  gap: 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+.seg-bar button {
+  flex: 1;
+  padding: 0.45rem 0.25rem;
+  border: none;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-right: 1px solid #ddd;
+  transition: background 0.1s, color 0.1s;
+}
+.seg-bar button:last-child { border-right: none; }
+.seg-bar button:hover { background: #f0f4ff; }
+.seg-bar button.active { background: #2563eb; color: #fff; }
+
+.ctrl-grid {
+  display: grid;
+  /* ENVIRONMENT (3 sliders) gets the widest column; PROPAGATION and
+     OUTPUT have less content so they're tighter. minmax(0, …) is what
+     lets the columns shrink below the intrinsic min-content width and
+     stay inside the body max-width. */
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr) minmax(0, 0.95fr);
+  gap: 0.75rem;
+}
+.ctrl-grid > .card { min-width: 0; }
+@media (max-width: 720px) {
+  .ctrl-grid { grid-template-columns: 1fr; }
+}
+
+.ctrl-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.4rem;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  min-width: 0;
+}
+.slider-row:last-child { margin-bottom: 0; }
+.slider-row label {
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  color: #333;
+}
+/* ENVIRONMENT pane has 3 sliders sharing one column, so we align their
+   labels to a fixed width. The narrower side panels each contain only
+   one slider apiece, so they don't need any label-width alignment. */
+.card.env .slider-row label { min-width: 88px; }
+.slider-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+.slider-val {
+  font-size: 0.78rem;
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #555;
+  flex-shrink: 0;
+}
+.opt-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #333;
+  margin-top: 0.3rem;
+}
+.opt-row input[type="radio"], .opt-row input[type="checkbox"] {
+  cursor: pointer;
+}
+.opt-row label { cursor: pointer; }
+
+.btn-row {
+  text-align: center;
+  margin: 0.75rem 0 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.play-btn {
+  padding: 0.55rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 9em;
+  transition: background 0.12s;
+}
+.play-btn:hover { background: #1d4ed8; }
+.play-btn.secondary {
+  background: #fff;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+}
+.play-btn.secondary:hover { background: #eef2ff; }
+
+details {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+details .info-content {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: #333;
+}
+details .info-content p { margin-bottom: 0.55rem; }
+details .info-content h4 { margin: 0.85rem 0 0.35rem; font-size: 0.9rem; }
+details .info-content ol { padding-left: 1.2rem; }
+details .info-content li { margin-bottom: 0.35rem; }
+details .info-content a { color: #2563eb; }
+
+footer {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #999;
+  margin-top: 0.5rem;
+}
+footer a { color: #999; }
+</style>
+</head>
+<body>
+
+<h1>Atmospheric Absorption</h1>
+<p class="subtitle">Hear and see how air absorbs sound as a function of distance, temperature, humidity, and pressure. ISO 9613-1 / Bass 1995.</p>
+<p class="nav-link">
+  <a href="../index.html">&larr; All demos</a> &middot;
+  <a href="https://github.com/dougjam/demos/tree/master/atmospheric-absorption">Source</a> &middot;
+  <a href="https://github.com/dougjam/demos/tree/master/atmospheric-absorption/python">Python reference</a> &middot;
+  <a href="test.html">Tests</a>
+</p>
+
+<div class="seg-bar" id="presetBar">
+  <button data-preset="thunder">Thunder</button>
+  <button data-preset="gunshot">Gunshot</button>
+  <button data-preset="voice">Voice</button>
+  <button data-preset="music">Music</button>
+  <button data-preset="fan">Data center</button>
+  <button data-preset="white" class="active">White noise</button>
+  <button data-preset="pink">Pink noise</button>
+</div>
+
+<div class="card plot-card">
+  <canvas id="plotCanvas"></canvas>
+</div>
+
+<div class="ctrl-grid">
+  <div class="card env">
+    <div class="ctrl-section-title">Environment</div>
+    <div class="slider-row">
+      <label>Temperature</label>
+      <input type="range" id="tSlider" min="-20" max="50" value="20" step="1">
+      <span class="slider-val" id="tVal">20 &deg;C</span>
+    </div>
+    <div class="slider-row">
+      <label>Humidity</label>
+      <input type="range" id="rhSlider" min="1" max="100" value="50" step="1">
+      <span class="slider-val" id="rhVal">50 %</span>
+    </div>
+    <div class="slider-row">
+      <label>Pressure</label>
+      <input type="range" id="pSlider" min="500" max="1100" value="1013" step="1">
+      <span class="slider-val" id="pVal">101.3 kPa</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ctrl-section-title">Propagation</div>
+    <div class="slider-row">
+      <label>Distance (<em>r</em>)</label>
+      <input type="range" id="rSlider" min="0" max="200" value="80" step="1">
+      <span class="slider-val" id="rVal">100 m</span>
+    </div>
+    <div class="opt-row">
+      <input type="checkbox" id="invROpt">
+      <label for="invROpt">include 1/r spreading</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ctrl-section-title">Output</div>
+    <div class="opt-row">
+      <input type="radio" name="ab" id="abDry" value="dry">
+      <label for="abDry">Dry</label>
+      <input type="radio" name="ab" id="abAbs" value="absorbed" checked style="margin-left:.5rem">
+      <label for="abAbs">Absorbed</label>
+    </div>
+    <div class="slider-row" style="margin-top:.35rem">
+      <label>Volume</label>
+      <input type="range" id="volSlider" min="0" max="100" value="50" step="1">
+      <span class="slider-val" id="volVal">0.50</span>
+    </div>
+    <div class="opt-row">
+      <input type="checkbox" id="loopOpt" checked>
+      <label for="loopOpt">loop</label>
+    </div>
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="play-btn" id="playBtn">Start</button>
+  <button class="play-btn secondary" id="reloadBtn">Reload source</button>
+</div>
+
+<details open>
+  <summary>About this sound model</summary>
+  <div class="info-content">
+    <p>Sound is absorbed by air through several mechanisms, parameterized in
+    ISO 9613-1 as a sum of three terms: a classical term (viscous and
+    thermal-conductive losses plus rotational relaxation, all roughly
+    proportional to <em>f</em><sup>2</sup> at audio frequencies); the
+    <strong>vibrational relaxation of O<sub>2</sub></strong>; and the
+    <strong>vibrational relaxation of N<sub>2</sub></strong>. The two
+    vibrational terms have distinct relaxation frequencies and Arrhenius
+    factors; they dominate above about 1 kHz and depend strongly on humidity
+    because water vapor catalyzes both transitions, shifting their relaxation
+    frequencies up into the ultrasonic.</p>
+
+    <p>The result is a smooth <strong>absorption coefficient
+    <em>&alpha;</em>(<em>f</em>)</strong>, in dB per unit distance, that
+    grows with frequency: about 5 dB/km at 1 kHz, 160 dB/km at 10 kHz, and 3
+    dB/<em>meter</em> at 100 kHz under typical conditions (20 &deg;C, 50%
+    RH, 1 atm). <em>&alpha;</em>(<em>f</em>) is plotted as the gray dashed
+    curve above and depends only on the air (temperature, humidity,
+    pressure), not on the listener's distance from the source.</p>
+
+    <p>The <strong>total attenuation</strong> at frequency <em>f</em> over a
+    propagation distance <em>r</em> is then simply
+    <strong><em>A</em>(<em>f</em>,&nbsp;<em>r</em>) =
+    <em>&alpha;</em>(<em>f</em>) &middot; <em>r</em></strong>, which is the
+    solid blue curve. Doubling the distance shifts the blue curve up by
+    6&nbsp;dB at every frequency (since multiplying <em>r</em> by 2 adds
+    20&nbsp;log<sub>10</sub>&nbsp;2 &asymp; 6&nbsp;dB everywhere); the shape
+    of the curve never changes with <em>r</em>, only its overall vertical
+    position. Over a few kilometers, every frequency above a few&nbsp;kHz
+    accumulates so much <em>A</em>(<em>f</em>,&nbsp;<em>r</em>) that it is
+    effectively gone: this is why distant thunder is a rumble, not a crack.</p>
+
+    <p>The audio path applies a frequency-dependent filter whose magnitude
+    response approximates 10<sup>&minus;<em>A</em>(<em>f</em>,&nbsp;<em>r</em>)/20</sup>
+    (the linear-amplitude equivalent of the dB attenuation). Specifically,
+    a cascade of 10 octave-spaced peaking-EQ biquads (31.5 Hz to 16 kHz,
+    <em>Q</em>&nbsp;&asymp;&nbsp;1.4) is gain-matched per band to the target
+    <em>A</em>(<em>f</em>,&nbsp;<em>r</em>) curve, so the wet path's
+    magnitude response tracks the blue plot to within a couple of dB
+    everywhere in the audible band. Biquads' smoothly-automatable
+    AudioParams make the response interpolate cleanly as you drag, with no
+    clicks.</p>
+
+    <p>Adjust temperature, humidity, pressure, and distance above and
+    listen to the change. Move the distance slider continuously while a
+    sound plays to hear the timbre roll off. You can also <strong>grab
+    the blue curve directly with the mouse</strong> and drag it up or
+    down on the plot &mdash; the distance slider follows.</p>
+
+    <h4>Slider parameters</h4>
+
+    <p><strong>Temperature.</strong> Air temperature. The vibrational
+    relaxation frequencies depend on <em>T</em> via Arrhenius factors
+    exp(&minus;&Theta;/<em>T</em>) with &Theta; = 2239 K (O<sub>2</sub>) and
+    3352 K (N<sub>2</sub>). Cold air generally absorbs more at audio
+    frequencies than warm air, though the dependence is not large (about a
+    factor of two between &minus;20 &deg;C and +20 &deg;C at 1 kHz).</p>
+
+    <p><strong>Relative humidity.</strong> Water vapor catalyzes vibrational
+    relaxation. The absorption at a given frequency does <em>not</em> increase
+    monotonically with dryness; it peaks at a specific moderate humidity that
+    depends on frequency (about 4% RH for 1 kHz, about 10% for 4 kHz, about
+    19% for 10 kHz at 20 &deg;C, 1 atm). Both much-drier and much-wetter air
+    absorb less than the peak. This non-monotonic dependence is one of the
+    more counterintuitive features of atmospheric acoustics.</p>
+
+    <p><strong>Pressure.</strong> Lowering pressure at fixed RH has a
+    surprisingly weak effect on absorption (less than 1% change at 1 kHz
+    between 80 and 101 kPa). This is because lowering pressure at fixed RH
+    also raises the molar concentration of water vapor in a compensating way.
+    The pressure slider becomes interesting when combined with a low RH: a
+    dry, low-pressure stratosphere is a much more transparent acoustic medium
+    than dense low-altitude air with the same RH.</p>
+
+    <p><strong>Distance.</strong> Range from source to receiver. The total
+    attenuation is <em>&alpha;</em>(<em>f</em>) &middot; <em>r</em>, with
+    <em>&alpha;</em> in dB/m or dB/km and <em>r</em> in matching units. The
+    1/<em>r</em> geometric spreading from a point source is <em>not</em>
+    applied by default; toggle the checkbox to include it.</p>
+
+    <h4>References</h4>
+    <ol>
+      <li><strong>ISO 9613-1:1993</strong>, <em>Acoustics: Attenuation of
+      sound during propagation outdoors, Part 1: Calculation of the absorption
+      of sound by the atmosphere</em>. International Organization for
+      Standardization.</li>
+      <li><strong>ANSI/ASA S1.26-2014 (R2019)</strong>, <em>Methods for
+      Calculation of the Absorption of Sound by the Atmosphere</em>.
+      Acoustical Society of America. Technically identical to ISO 9613-1
+      with an additional fractional-octave-band annex.</li>
+      <li><strong>Bass, H. E., L. C. Sutherland, A. J. Zuckerwar, D. T.
+      Blackstock, and D. M. Hester</strong> (1995). "Atmospheric absorption
+      of sound: Further developments." <em>J. Acoust. Soc. Am.</em> 97(1),
+      680&ndash;683.
+      <a href="https://doi.org/10.1121/1.412989">doi:10.1121/1.412989</a></li>
+      <li><strong>Russell, D. A.</strong> "Acoustics and Vibration Animations":
+      <a href="https://www.acs.psu.edu/drussell/demos.html">https://www.acs.psu.edu/drussell/demos.html</a>.
+      See "Absorption and Attenuation of Sound in Air".</li>
+      <li><strong>python-acoustics library</strong>, ISO 9613-1 module
+      (BSD-3): <a href="https://github.com/python-acoustics/python-acoustics">github.com/python-acoustics/python-acoustics</a>.</li>
+    </ol>
+  </div>
+</details>
+
+<footer>
+  AI-assisted demo by Doug James using Claude Code. Provided "as is" for educational purposes.
+  <a href="https://github.com/dougjam/demos/blob/master/DEMO_DISCLAIMER.md">Full disclaimer</a>.
+  Audio: <a href="ATTRIBUTION.md">attribution</a>.
+</footer>
+
+<script src="iso9613.js?v=11"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script src="app.js?v=11"></script>
+</body>
+</html>

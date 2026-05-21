@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!-- (c) 2026 Doug James, Stanford University. BSD-2-Clause. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Atmospheric Absorption: numerical tests</title>
+<style>
+body {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  padding: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+  font-size: 13px;
+}
+h1 { font-size: 1.3rem; margin-bottom: 0.5rem; font-family: system-ui, sans-serif; }
+p  { font-family: system-ui, sans-serif; font-size: 14px; margin-bottom: 1rem; }
+table { border-collapse: collapse; margin-bottom: 1.5rem; width: 100%; }
+th, td { padding: 3px 8px; text-align: right; border-bottom: 1px solid #ddd; }
+th { background: #eef; text-align: center; }
+td.note { text-align: left; color: #555; }
+td.pass { color: #157f3a; font-weight: 600; }
+td.fail { color: #b00020; font-weight: 600; }
+#summary { font-family: system-ui, sans-serif; font-size: 1rem; font-weight: 600; }
+#summary.pass { color: #157f3a; }
+#summary.fail { color: #b00020; }
+</style>
+</head>
+<body>
+
+<h1>Atmospheric Absorption: numerical tests</h1>
+<p>Verifies the JS port of ISO 9613-1 against the SPEC §5.1 reference table
+to within 1% relative error, plus the SPEC §5.2 relaxation frequencies and
+the SPEC §5.1 peak-RH sanity check.
+<a href="index.html">&larr; demo</a></p>
+
+<div id="summary"></div>
+
+<h2 style="font-family:system-ui,sans-serif;font-size:1rem;margin:1rem 0 .25rem">SPEC §5.1 - alpha(f) values (tol 1%)</h2>
+<table id="alphaTable">
+<thead>
+<tr><th>T (C)</th><th>RH (%)</th><th>p (kPa)</th><th>f (Hz)</th>
+    <th>expect (dB/km)</th><th>got</th><th>err</th><th>status</th><th>note</th></tr>
+</thead><tbody></tbody></table>
+
+<h2 style="font-family:system-ui,sans-serif;font-size:1rem;margin:1rem 0 .25rem">SPEC §5.2 - relaxation frequencies (tol f_rO ±0.5 kHz, f_rN ±5 Hz)</h2>
+<table id="frTable">
+<thead>
+<tr><th>T (C)</th><th>RH (%)</th><th>p (kPa)</th>
+    <th>f_rO expect</th><th>f_rO got</th><th>status</th>
+    <th>f_rN expect</th><th>f_rN got</th><th>status</th></tr>
+</thead><tbody></tbody></table>
+
+<h2 style="font-family:system-ui,sans-serif;font-size:1rem;margin:1rem 0 .25rem">SPEC §5.1 - peak-RH sanity (peak |alpha| over RH at fixed f)</h2>
+<table id="peakTable">
+<thead>
+<tr><th>f (Hz)</th><th>expect peak RH (%)</th><th>got peak RH (%)</th>
+    <th>tol</th><th>status</th></tr>
+</thead><tbody></tbody></table>
+
+<script src="iso9613.js"></script>
+<script>
+const ALPHA_TESTS = [
+  // T_C, RH, p, f, expect dB/km, note
+  [ 20, 50, 101.325,    100,   0.294, "default"],
+  [ 20, 50, 101.325,   1000,   4.66,  "default"],
+  [ 20, 50, 101.325,  10000, 158.8,   "default"],
+  [ 20, 50, 101.325, 100000, 3280,    "default (3.28 dB/m)"],
+  [ 20, 70, 101.325,   1000,   4.98,  "humid"],
+  [ 20, 70, 101.325,  10000, 117.5,   "humid"],
+  [  0, 50, 101.325,   1000,   6.83,  "cold"],
+  [  0, 50, 101.325,  10000, 172.1,   "cold"],
+  [ 30, 80, 101.325,   1000,   7.41,  "hot/humid"],
+  [ 30, 80, 101.325,  10000,  80.7,   "hot/humid"],
+  [ 20, 50,  80,       1000,   4.62,  "reduced pressure"],
+  [ 20,  5, 101.325,   1000,  26.51,  "very dry"],
+  [ 20,  5, 101.325,   4000,  64.48,  "very dry, mid f"],
+  [-20, 50, 101.325,   1000,   9.14,  "very cold"],
+];
+
+const FR_TESTS = [
+  // T_C, RH, p, f_rO expect, f_rN expect
+  [20, 50, 101.325, 35400, 332],
+  [20, 70, 101.325, 53200, 461],
+];
+
+// Peak-RH sanity: at T=20C, p=1atm, peak alpha as RH sweeps 0..100% sits
+// near these RH values (per SPEC §5.1 last paragraph). Tolerate ±2 percentage points.
+const PEAK_TESTS = [
+  [ 1000,  4],
+  [ 4000, 10],
+  [10000, 19],
+];
+
+let failures = 0;
+let total = 0;
+const fmt = (x) => x < 100 ? x.toFixed(3) : x.toFixed(1);
+
+const alphaBody = document.querySelector("#alphaTable tbody");
+for (const [T_C, RH, p, f, expect, note] of ALPHA_TESTS) {
+  const got = ISO9613.alphaDbPerKm(f, T_C, RH, p);
+  const err = Math.abs(got - expect) / expect;
+  const pass = err < 0.01;
+  total++; if (!pass) failures++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${T_C}</td><td>${RH}</td><td>${p}</td><td>${f}</td>
+    <td>${fmt(expect)}</td><td>${fmt(got)}</td>
+    <td>${(100*err).toFixed(2)}%</td>
+    <td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>
+    <td class="note">${note}</td>`;
+  alphaBody.appendChild(tr);
+}
+
+const frBody = document.querySelector("#frTable tbody");
+for (const [T_C, RH, p, eO, eN] of FR_TESTS) {
+  const { fRO, fRN } = ISO9613.relaxationFrequencies(T_C + 273.15, RH, p);
+  const okO = Math.abs(fRO - eO) <= 500;
+  const okN = Math.abs(fRN - eN) <= 5;
+  total += 2; if (!okO) failures++; if (!okN) failures++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${T_C}</td><td>${RH}</td><td>${p}</td>
+    <td>${eO.toFixed(0)}</td><td>${fRO.toFixed(0)}</td>
+    <td class="${okO?'pass':'fail'}">${okO?'PASS':'FAIL'}</td>
+    <td>${eN.toFixed(0)}</td><td>${fRN.toFixed(0)}</td>
+    <td class="${okN?'pass':'fail'}">${okN?'PASS':'FAIL'}</td>`;
+  frBody.appendChild(tr);
+}
+
+const peakBody = document.querySelector("#peakTable tbody");
+for (const [f, expectRH] of PEAK_TESTS) {
+  let bestRH = 1, bestA = -Infinity;
+  for (let RH = 1; RH <= 100; RH += 0.5) {
+    const a = ISO9613.alphaDbPerKm(f, 20, RH, 101.325);
+    if (a > bestA) { bestA = a; bestRH = RH; }
+  }
+  const pass = Math.abs(bestRH - expectRH) <= 2;
+  total++; if (!pass) failures++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${f}</td><td>${expectRH}</td><td>${bestRH.toFixed(1)}</td>
+    <td>&plusmn;2</td>
+    <td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`;
+  peakBody.appendChild(tr);
+}
+
+const sum = document.getElementById("summary");
+if (failures === 0) {
+  sum.textContent = `All ${total} checks passed.`;
+  sum.className = "pass";
+} else {
+  sum.textContent = `${failures} of ${total} checks FAILED.`;
+  sum.className = "fail";
+}
+</script>
+</body>
+</html>
