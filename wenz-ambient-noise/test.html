@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<!-- (c) 2026 Doug James, Stanford University. BSD-2-Clause. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wenz Ambient Noise: numerical tests</title>
+<style>
+body {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  padding: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+  font-size: 13px;
+}
+h1 { font-size: 1.3rem; margin-bottom: 0.5rem; font-family: system-ui, sans-serif; }
+h2 { font-family: system-ui, sans-serif; font-size: 1rem; margin: 1rem 0 .25rem; }
+p  { font-family: system-ui, sans-serif; font-size: 14px; margin-bottom: 1rem; }
+table { border-collapse: collapse; margin-bottom: 1.5rem; width: 100%; }
+th, td { padding: 3px 8px; text-align: right; border-bottom: 1px solid #ddd; }
+th { background: #eef; text-align: center; }
+td.note { text-align: left; color: #555; }
+td.pass { color: #157f3a; font-weight: 600; }
+td.fail { color: #b00020; font-weight: 600; }
+#summary { font-family: system-ui, sans-serif; font-size: 1rem; font-weight: 600; }
+#summary.pass { color: #157f3a; }
+#summary.fail { color: #b00020; }
+</style>
+</head>
+<body>
+
+<h1>Wenz Ambient Noise: numerical tests</h1>
+<p>Verifies the JS port of the Coates 1989 / Stojanovic 2007 formulas
+against the SPEC section 5.1 reference table (NL_total within 0.5 dB,
+dominant component matches), the shipping-mute drop from SPEC section
+5.5, and a few component-by-component sanity values.
+<a href="index.html">&larr; demo</a></p>
+
+<div id="summary"></div>
+
+<h2>SPEC section 5.1: NL_total and dominant component (tol 0.5 dB)</h2>
+<table id="totalTable">
+<thead>
+<tr><th>U (m/s)</th><th>s</th><th>f (Hz)</th>
+    <th>expect NL</th><th>got</th><th>err (dB)</th>
+    <th>expect dom</th><th>got dom</th><th>status</th></tr>
+</thead><tbody></tbody></table>
+
+<h2>SPEC section 5.5: shipping mute drops 30 Hz total at U = 5 m/s, s = 0</h2>
+<table id="muteTable">
+<thead>
+<tr><th>scenario</th><th>NL_total at 30 Hz</th><th>note</th></tr>
+</thead><tbody></tbody></table>
+
+<h2>Component sanity: per-component NL at single points (tol 0.2 dB)</h2>
+<table id="compTable">
+<thead>
+<tr><th>component</th><th>args</th><th>f (Hz)</th>
+    <th>expect (dB)</th><th>got</th><th>status</th></tr>
+</thead><tbody></tbody></table>
+
+<script src="wenz.js"></script>
+<script>
+const TOTAL_TESTS = [
+  // U,  s,    f(Hz), expect NL, dominant
+  [0.5,  0.0,     30,  66.3, "ship"],
+  [0.5,  0.0,    100,  58.0, "ship"],
+  [0.5,  0.0,   1000,  49.5, "wind"],
+  [0.5,  0.0,  10000,  34.6, "wind"],
+  [0.5,  0.0, 100000,  25.4, "thermal"],
+  [5.0,  0.5,     30,  74.1, "ship"],
+  [5.0,  0.5,    100,  67.8, "ship"],
+  [5.0,  0.5,   1000,  61.0, "wind"],
+  [5.0,  0.5,  10000,  46.1, "wind"],
+  [12.0, 0.0,     30,  67.2, "ship"],
+  [12.0, 0.0,   1000,  70.1, "wind"],
+  [12.0, 1.0,     30,  83.8, "ship"],
+  [12.0, 1.0,   1000,  70.2, "wind"],
+  [1.0,  1.0,     30,  83.8, "ship"],
+  [1.0,  1.0,   1000,  53.6, "wind"],
+];
+
+const COMP_TESTS = [
+  // name, args (string for display), f, expect, fn
+  ["turb",    "",        10,   17 - 30 * Math.log10(0.01),   (f) => Wenz.nlTurb(f / 1000)],
+  ["turb",    "",       100,   17 - 30 * Math.log10(0.1),    (f) => Wenz.nlTurb(f / 1000)],
+  ["ship",    "s=1.0",   30,   nlShipExpect(30, 1.0),         (f) => Wenz.nlShip(f / 1000, 1.0)],
+  ["ship",    "s=0.0",   30,   nlShipExpect(30, 0.0),         (f) => Wenz.nlShip(f / 1000, 0.0)],
+  ["wind",    "U=5",   1000,   nlWindExpect(1000, 5),         (f) => Wenz.nlWindCoates(f / 1000, 5)],
+  ["wind",    "U=12",  1000,   nlWindExpect(1000, 12),        (f) => Wenz.nlWindCoates(f / 1000, 12)],
+  ["thermal", "",     1000,   -15,                            (f) => Wenz.nlThermal(f / 1000)],
+  ["thermal", "",   100000,    25,                            (f) => Wenz.nlThermal(f / 1000)],
+];
+
+function nlShipExpect(fHz, s) {
+  const fk = fHz / 1000;
+  return 40 + 20 * (s - 0.5) + 26 * Math.log10(fk) - 60 * Math.log10(fk + 0.03);
+}
+function nlWindExpect(fHz, U) {
+  const fk = fHz / 1000;
+  return 50 + 7.5 * Math.sqrt(U) + 20 * Math.log10(fk) - 40 * Math.log10(fk + 0.4);
+}
+
+let failures = 0, total = 0;
+
+const tBody = document.querySelector("#totalTable tbody");
+for (const [U, s, f, expect, dom] of TOTAL_TESTS) {
+  const got = Wenz.nlTotal(f, U, s);
+  const gotDom = Wenz.dominantComponent(f, U, s);
+  const err = Math.abs(got - expect);
+  const passNL = err <= 0.5;
+  const passDom = (gotDom === dom);
+  const pass = passNL && passDom;
+  total += 2; if (!passNL) failures++; if (!passDom) failures++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${U}</td><td>${s.toFixed(1)}</td><td>${f}</td>
+    <td>${expect.toFixed(2)}</td><td>${got.toFixed(2)}</td>
+    <td>${err.toFixed(2)}</td>
+    <td>${dom}</td><td>${gotDom}</td>
+    <td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`;
+  tBody.appendChild(tr);
+}
+
+const mBody = document.querySelector("#muteTable tbody");
+const full = Wenz.nlTotal(30, 5, 0);
+const noShip = Wenz.nlTotal(30, 5, 0, ["ship"]);
+const drop = full - noShip;
+const dropOk = drop > 1.0;     // SPEC says ~3.4 dB drop; require > 1 dB
+total++; if (!dropOk) failures++;
+[
+  ["s = 0 (shipping floor on)", full.toFixed(2) + " dB", "Coates/Stojanovic 'minimum traffic' baseline"],
+  ["shipping muted",            noShip.toFixed(2) + " dB", "shipping removed from the linear sum"],
+  ["drop",                      drop.toFixed(2) + " dB",   dropOk ? "PASS (> 1 dB)" : "FAIL"],
+].forEach(([a,b,c]) => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td class="note">${a}</td><td>${b}</td>
+                  <td class="note">${c}</td>`;
+  mBody.appendChild(tr);
+});
+
+const cBody = document.querySelector("#compTable tbody");
+for (const [name, args, f, expect, fn] of COMP_TESTS) {
+  const got = fn(f);
+  const err = Math.abs(got - expect);
+  const pass = err <= 0.2;
+  total++; if (!pass) failures++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="note">${name}</td>
+    <td class="note">${args}</td><td>${f}</td>
+    <td>${expect.toFixed(2)}</td><td>${got.toFixed(2)}</td>
+    <td class="${pass?'pass':'fail'}">${pass?'PASS':'FAIL'}</td>`;
+  cBody.appendChild(tr);
+}
+
+const sum = document.getElementById("summary");
+if (failures === 0) {
+  sum.textContent = `All ${total} checks passed.`;
+  sum.className = "pass";
+} else {
+  sum.textContent = `${failures} of ${total} checks FAILED.`;
+  sum.className = "fail";
+}
+</script>
+</body>
+</html>
